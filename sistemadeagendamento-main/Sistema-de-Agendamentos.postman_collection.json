@@ -1,0 +1,365 @@
+{
+  "info": {
+    "_postman_id": "f857f94d-8b24-48dc-b1c8-1a684e7595be",
+    "name": "Sistema de Agendamentos - API",
+    "description": "Requests preparados a partir das rotas montadas em backend/src/app.js. Use somente em desenvolvimento/testes e confirme o destino antes de executar requests de escrita.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:4000/api" },
+    { "key": "token", "value": "" },
+    { "key": "tokenClinicA", "value": "" },
+    { "key": "tokenClinicB", "value": "" },
+    { "key": "tokenPatient", "value": "" },
+    { "key": "platformToken", "value": "" },
+    { "key": "loginEmail", "value": "" },
+    { "key": "loginPassword", "value": "" },
+    { "key": "clinicBLoginEmail", "value": "" },
+    { "key": "clinicBLoginPassword", "value": "" },
+    { "key": "newUserEmail", "value": "" },
+    { "key": "newUserPassword", "value": "" },
+    { "key": "patientEmail", "value": "" },
+    { "key": "clinicSelectionToken", "value": "" },
+    { "key": "clinicId", "value": "" },
+    { "key": "clinicSlug", "value": "" },
+    { "key": "patientId", "value": "" },
+    { "key": "patientIdClinicA", "value": "" },
+    { "key": "professionalId", "value": "" },
+    { "key": "specialtyId", "value": "" },
+    { "key": "serviceId", "value": "" },
+    { "key": "appointmentId", "value": "" },
+    { "key": "appointmentCode", "value": "" },
+    { "key": "paymentId", "value": "" },
+    { "key": "testDate", "value": "" },
+    { "key": "scheduledStart", "value": "" },
+    { "key": "scheduledEnd", "value": "" },
+    { "key": "rescheduledStart", "value": "" },
+    { "key": "rescheduledEnd", "value": "" },
+    { "key": "platformLoginEmail", "value": "" },
+    { "key": "platformLoginPassword", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Saúde",
+      "item": [
+        {
+          "name": "Health - liveness",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('HTTP 200 e resposta de saúde', function () {", "  pm.response.to.have.status(200);", "  var body = pm.response.json();", "  pm.expect(body.ok).to.eql(true);", "  pm.expect(body).to.have.property('environment');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Health - readiness (consulta PostgreSQL)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health/ready" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Resposta de readiness em JSON', function () {", "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');", "  pm.expect([200, 503]).to.include(pm.response.code);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Autenticação clínica",
+      "item": [
+        {
+          "name": "Login clínico",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{loginEmail}}\",\n  \"password\": \"{{loginPassword}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/login" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Login responde em JSON com envelope da API', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (body.ok && body.data && body.data.token) {", "    pm.environment.set('token', body.data.token);", "    pm.environment.set('tokenClinicA', body.data.token);", "  }", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Login Clinic B (salva token separado)",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{clinicBLoginEmail}}\",\n  \"password\": \"{{clinicBLoginPassword}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/login" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Login Clinic B mantém token próprio', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (body.ok && body.data && body.data.token) pm.environment.set('tokenClinicB', body.data.token);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Login clínico - payload inválido",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"invalido\",\n  \"password\": \"\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/login" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Campos de login inválidos retornam 400', function () {", "  pm.response.to.have.status(400);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Selecionar clínica no login",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"selectionToken\": \"{{clinicSelectionToken}}\",\n  \"clinicId\": \"{{clinicId}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/login/select-clinic" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seleção de clínica exige dados válidos e retorna JSON', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (body.ok && body.data && body.data.token) {", "    pm.environment.set('token', body.data.token);", "    pm.environment.set('tokenClinicA', body.data.token);", "  }", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Sessão atual - sem Bearer",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/auth/me" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Rota protegida rejeita ausência de token', function () {", "  pm.expect(pm.response.code).to.be.oneOf([401, 403]);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Sessão atual",
+          "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Sessão autenticada retorna usuário', function () {", "  pm.response.to.have.status(200);", "  var body = pm.response.json();", "  pm.expect(body.ok).to.eql(true);", "  pm.expect(body.data).to.have.property('role');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Logout clínico",
+          "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Logout invalida a sessão atual', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().ok).to.eql(true);", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Clínica, usuários e assinatura",
+      "item": [
+        {
+          "name": "Consultar clínica autenticada",
+          "request": { "method": "GET", "url": "{{baseUrl}}/clinics" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Retorna clínica do token autenticado', function () {", "  pm.response.to.have.status(200);", "  var body = pm.response.json();", "  pm.expect(body.ok).to.eql(true);", "  pm.expect(body.data).to.be.an('object');", "  if (body.data.id) pm.environment.set('clinicId', body.data.id);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar usuários da clínica",
+          "request": { "method": "GET", "url": "{{baseUrl}}/clinics/users" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Usuários retornam lista JSON', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 403]);", "  var body = pm.response.json();", "  if (pm.response.code === 200) pm.expect(body.data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Assinatura atual",
+          "request": { "method": "GET", "url": "{{baseUrl}}/subscriptions/current" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Assinatura atual retorna envelope JSON', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 403]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 200) pm.expect(body).to.have.property('data');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Registrar usuário clínico (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Usuário Sintético Postman\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"reception\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/register" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Cadastro valida permissões, dados e resposta', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 401, 403, 409]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Configurações e especialidades",
+      "item": [
+        {
+          "name": "Consultar configurações",
+          "request": { "method": "GET", "url": "{{baseUrl}}/settings" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Configurações respondem com envelope JSON', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json()).to.have.property('ok', true);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Atualizar configurações (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"timezone\": \"America/Sao_Paulo\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/settings" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Atualização de configuração valida payload e resposta', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 403, 409]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Configurações - campo desconhecido",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"unexpectedField\": \"invalid\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/settings" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Campo desconhecido é rejeitado', function () {", "  pm.response.to.have.status(400);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar especialidades",
+          "request": { "method": "GET", "url": "{{baseUrl}}/specialties" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Especialidades retornam lista', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Criar especialidade (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Especialidade Sintética Postman\",\n  \"description\": \"Registro de teste manual\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/specialties" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Criação de especialidade responde com status esperado', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 403, 409]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 201 && body.data.id) pm.environment.set('specialtyId', body.data.id);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Especialidades - payload inválido",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": { \"not\": \"a string\" }\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/specialties" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Payload inválido é rejeitado antes da criação', function () {", "  pm.response.to.have.status(400);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Paciente - criação de especialidade proibida",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{tokenPatient}}", "type": "string" }] }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acesso negado Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/specialties" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Paciente autenticado sem permissão recebe 403', function () {", "  pm.response.to.have.status(403);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Pacientes, profissionais e serviços",
+      "item": [
+        {
+          "name": "Listar pacientes",
+          "request": { "method": "GET", "url": "{{baseUrl}}/patients" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Pacientes retornam lista', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Criar paciente sintético (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Paciente Sintético Postman\",\n  \"email\": \"{{patientEmail}}\",\n  \"phone\": \"11999990000\",\n  \"status\": \"active\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/patients" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Criação de paciente usa envelope e ID de resposta', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 403, 409]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 201 && body.data.id) {", "    pm.environment.set('patientId', body.data.id);", "    pm.environment.set('patientIdClinicA', body.data.id);", "  }", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Pacientes - payload inválido",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": { \"not\": \"a string\" }\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/patients" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Paciente inválido é rejeitado', function () {", "  pm.response.to.have.status(400);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar profissionais",
+          "request": { "method": "GET", "url": "{{baseUrl}}/professionals" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Profissionais retornam lista', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Criar profissional sintético (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Profissional Sintético Postman\",\n  \"specialtyId\": \"{{specialtyId}}\",\n  \"status\": \"active\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/professionals" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Criação de profissional retorna ID quando aceita', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 403, 409]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 201 && body.data.id) pm.environment.set('professionalId', body.data.id);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar serviços",
+          "request": { "method": "GET", "url": "{{baseUrl}}/services" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Serviços retornam lista', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Criar serviço sintético (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Serviço Sintético Postman\",\n  \"description\": \"Registro de teste manual\",\n  \"durationMinutes\": 30,\n  \"price\": 0,\n  \"professionalIds\": [\"{{professionalId}}\"]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/services" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Criação de serviço retorna ID quando aceita', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 403, 409]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 201 && body.data.id) pm.environment.set('serviceId', body.data.id);", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Agenda e agendamentos",
+      "item": [
+        {
+          "name": "Consultar horários de trabalho",
+          "request": { "method": "GET", "url": "{{baseUrl}}/schedules/professionals/{{professionalId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Agenda profissional retorna lista', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Cadastrar horário de trabalho (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"weekday\": 1,\n  \"startTime\": \"09:00\",\n  \"endTime\": \"17:00\",\n  \"durationMinutes\": 30,\n  \"breakDurationMinutes\": 0\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/schedules/professionals/{{professionalId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Cadastro de agenda valida payload e conflito', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 403, 404, 409]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Consultar disponibilidade",
+          "request": { "method": "GET", "url": "{{baseUrl}}/schedules/professionals/{{professionalId}}/availability?date={{testDate}}&serviceId={{serviceId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Disponibilidade retorna lista ou erro de pré-requisito', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 403, 404]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 200) pm.expect(body.data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar agendamentos",
+          "request": { "method": "GET", "url": "{{baseUrl}}/appointments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Agendamentos retornam lista', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Criar agendamento sintético (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"professionalId\": \"{{professionalId}}\",\n  \"specialtyId\": \"{{specialtyId}}\",\n  \"serviceId\": \"{{serviceId}}\",\n  \"scheduledStart\": \"{{scheduledStart}}\",\n  \"scheduledEnd\": \"{{scheduledEnd}}\",\n  \"notes\": \"Postman synthetic test\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/appointments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Agendamento retorna criação, conflito ou pré-requisito ausente', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 403, 404, 409]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 201 && body.data.id) {", "    pm.environment.set('appointmentId', body.data.id);", "    if (body.data.code) pm.environment.set('appointmentCode', body.data.code);", "  }", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Agendamento - IDs malformados",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"patientId\": \"not-a-uuid\",\n  \"professionalId\": \"not-a-uuid\",\n  \"serviceId\": \"not-a-uuid\",\n  \"scheduledStart\": \"{{scheduledStart}}\",\n  \"scheduledEnd\": \"{{scheduledEnd}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/appointments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('IDs inválidos são rejeitados', function () {", "  pm.response.to.have.status(400);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Repetir o mesmo horário para confirmar conflito (escrita)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"professionalId\": \"{{professionalId}}\",\n  \"specialtyId\": \"{{specialtyId}}\",\n  \"serviceId\": \"{{serviceId}}\",\n  \"scheduledStart\": \"{{scheduledStart}}\",\n  \"scheduledEnd\": \"{{scheduledEnd}}\",\n  \"notes\": \"Expected overlapping-slot conflict\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/appointments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Horário ocupado é recusado', function () {", "  pm.response.to.have.status(409);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Reagendar agendamento (escrita)",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"professionalId\": \"{{professionalId}}\",\n  \"specialtyId\": \"{{specialtyId}}\",\n  \"serviceId\": \"{{serviceId}}\",\n  \"scheduledStart\": \"{{rescheduledStart}}\",\n  \"scheduledEnd\": \"{{rescheduledEnd}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/appointments/{{appointmentId}}/reschedule" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Reagendamento valida resposta e conflito', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 403, 404, 409]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Cancelar agendamento (escrita)",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Postman synthetic test\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/appointments/{{appointmentId}}/cancel" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Cancelamento retorna status de sucesso ou pré-requisito', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 403, 404]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Pagamentos e auditoria",
+      "item": [
+        {
+          "name": "Listar pagamentos da clínica",
+          "request": { "method": "GET", "url": "{{baseUrl}}/payments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Pagamentos retornam lista ou falta de capability', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 403]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 200) pm.expect(body.data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Criar registro de pagamento sintético (sem cobrança)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"appointmentId\": \"{{appointmentId}}\",\n  \"amount\": 0,\n  \"currency\": \"BRL\",\n  \"paymentMode\": \"before\",\n  \"provider\": \"internal\",\n  \"status\": \"pending\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/payments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Registro interno não executa cobrança e retorna resposta JSON', function () {", "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 403, 404]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 201 && body.data.id) pm.environment.set('paymentId', body.data.id);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Pagamento - campos opcionais inválidos",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"appointmentId\": \"{{appointmentId}}\",\n  \"amount\": 1,\n  \"currency\": \"USDD\",\n  \"paymentMode\": \"later\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/payments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Moeda/modo inválidos são rejeitados antes da criação', function () {", "  pm.response.to.have.status(400);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Atualizar status de pagamento (escrita)",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"paid\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/payments/{{paymentId}}/status" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status aceita apenas estados definidos e respeita permissões', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 403, 404]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Consultar auditoria da clínica",
+          "request": { "method": "GET", "url": "{{baseUrl}}/audit" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Auditoria retorna lista ou capability negada', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 403]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 200) pm.expect(body.data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Reserva pública",
+      "auth": { "type": "noauth" },
+      "item": [
+        {
+          "name": "Consultar página pública da clínica",
+          "request": { "method": "GET", "url": "{{baseUrl}}/public/clinics/{{clinicSlug}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Página pública responde sem autenticação', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 404]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar serviços públicos",
+          "request": { "method": "GET", "url": "{{baseUrl}}/public/clinics/{{clinicSlug}}/services" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Serviços públicos respondem sem autenticação', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 404]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 200) pm.expect(body.data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar profissionais de um serviço público",
+          "request": { "method": "GET", "url": "{{baseUrl}}/public/clinics/{{clinicSlug}}/services/{{serviceId}}/professionals" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Profissionais públicos respondem sem autenticação', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 404]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 200) pm.expect(body.data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Consultar disponibilidade pública",
+          "request": { "method": "GET", "url": "{{baseUrl}}/public/clinics/{{clinicSlug}}/services/{{serviceId}}/professionals/{{professionalId}}/availability?date={{testDate}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Disponibilidade pública retorna slots ou requisito ausente', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 404]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (pm.response.code === 200) pm.expect(body.data).to.be.an('array');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Reserva pública - payload inválido",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"idempotencyKey\": \"invalid\",\n  \"serviceId\": \"invalid\",\n  \"professionalId\": \"invalid\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/public/clinics/{{clinicSlug}}/appointments" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Reserva pública rejeita payload inválido', function () {", "  pm.response.to.have.status(400);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Isolamento entre clínicas (preparado)",
+      "item": [
+        {
+          "name": "Clinic B - tentar consultar paciente de Clinic A",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{tokenClinicB}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/patients/{{patientIdClinicA}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Paciente de outra clínica não é revelado', function () {", "  pm.response.to.have.status(404);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Acesso protegido sem token",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/patients" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('A API rejeita acesso sem autenticação', function () {", "  pm.expect(pm.response.code).to.be.oneOf([401, 403]);", "  pm.expect(pm.response.json().ok).to.eql(false);", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+    {
+      "name": "Administração global",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{platformToken}}", "type": "string" }] },
+      "item": [
+        {
+          "name": "Login administrativo global",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{platformLoginEmail}}\",\n  \"password\": \"{{platformLoginPassword}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/platform/auth/login" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Login global separa token administrativo', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403]);", "  var body = pm.response.json();", "  pm.expect(body).to.have.property('ok');", "  if (body.ok && body.data && body.data.token) pm.environment.set('platformToken', body.data.token);", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Dashboard global",
+          "request": { "method": "GET", "url": "{{baseUrl}}/platform/dashboard" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Dashboard global requer token administrativo', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Listar clínicas globais",
+          "request": { "method": "GET", "url": "{{baseUrl}}/platform/clinics" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Listagem administrativa tem envelope JSON', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Logout administrativo global",
+          "request": { "method": "POST", "url": "{{baseUrl}}/platform/auth/logout" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Logout global responde com envelope JSON', function () {", "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);", "  pm.expect(pm.response.json()).to.have.property('ok');", "});"], "type": "text/javascript" } }]
+        }
+      ]
+    }
+  ]
+}

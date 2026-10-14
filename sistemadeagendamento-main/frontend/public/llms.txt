@@ -1,0 +1,14 @@
+# Clínica Agenda
+
+Clínica Agenda é um sistema web de agendamento e gestão de clínicas.
+
+## Recursos atuais
+
+- Gerenciar profissionais, serviços, horários de trabalho e disponibilidade da clínica.
+- Criar, consultar, cancelar e reagendar agendamentos conforme as permissões da conta.
+- Disponibilizar uma página pública de agendamento quando configurada pela clínica.
+- Aplicar autenticação, permissões por perfil, isolamento entre clínicas e registros de auditoria.
+
+## Disponibilidade comercial
+
+Planos, preços, cadastro autônomo de clínicas, períodos de teste, assinaturas e pagamentos online ainda não estão disponíveis.
