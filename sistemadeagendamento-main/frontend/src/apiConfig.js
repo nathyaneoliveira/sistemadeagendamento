@@ -5,6 +5,10 @@ export function resolveApiUrl({ isProduction, apiUrl }) {
     throw new Error('VITE_API_URL must be configured for production builds.');
   }
 
+  if (isProduction && configuredUrl === '/api') {
+    return configuredUrl;
+  }
+
   const resolvedUrl = configuredUrl || 'http://localhost:4000/api';
   let parsedUrl;
 

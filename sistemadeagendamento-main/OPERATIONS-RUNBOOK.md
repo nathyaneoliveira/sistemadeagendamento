@@ -4,17 +4,82 @@ Este documento registra as decisões e procedimentos que a equipe responsável d
 
 ## Preparação e validação local
 
-Os comandos disponíveis e os limites dos testes estão catalogados no `README.md`, na seção **Verificações e testes**. O projeto não declara scripts `test` nos `package.json`: os testes usam o runner nativo `node --test`. `npm --workspace backend run check` é uma verificação sintática limitada aos arquivos listados no script; não substitui a suíte.
+Os comandos disponíveis e os limites dos testes estão catalogados no `README.md`, na seção **Verificações e testes**. A API PHP tem smoke test, bateria P0 e testes de integração próprios. Nenhuma verificação sem banco substitui a integração PostgreSQL.
 
 Antes de iniciar localmente:
 
 1. Instalar dependências com `npm ci` na raiz, usando o `package-lock.json` versionado. Não é necessário repetir instalações separadas por workspace.
 2. Confirmar que o PostgreSQL local é uma instância de desenvolvimento descartável, e revisar `docker-compose.yml` antes de usar `npm run db:up`. Esse comando inicia o serviço `postgres` do Compose padrão; o volume `pgdata` é persistente. Não o confundir com um banco de integração dedicado.
-3. Fornecer configuração por variáveis do processo ou mecanismo seguro aprovado. `backend/src/config/env.js` chama `dotenv.config()`; portanto, executar a aplicação ou script com o diretório de trabalho na raiz pode carregar um `.env` existente. Para evitar carregar configuração acidental, usar um diretório de trabalho controlado sem `.env` e injetar apenas configurações de ambiente apropriadas. Nunca imprimir o ambiente nem incluir credenciais nos argumentos/comandos.
+3. Fornecer configuração por variáveis do processo ou mecanismo seguro aprovado. `php-backend/src/bootstrap.php` carrega `backend/.env` por padrão; `NOA_ENV_FILE=php://memory` impede essa leitura. Para evitar configuração acidental, usar a opção de memória e injetar apenas as variáveis necessárias. Nunca imprimir o ambiente nem incluir credenciais nos argumentos/comandos.
 4. Iniciar backend e frontend com os comandos listados no README. Para acesso local, verificar separadamente `VITE_API_URL` e `CORS_ORIGIN`; não usar endereço de produção para validações locais.
 5. Para testes unitários, usar somente os comandos de runner documentados no README. Os testes de integração devem permanecer desativados até que host, porta, nome do banco e usuário sejam conferidos contra a instância isolada dedicada.
 
 Nenhum destes procedimentos foi executado nesta etapa.
+
+## Preparação para a primeira hospedagem
+
+Esta seção registra a configuração encontrada no repositório e os passos que ainda dependem de decisões de infraestrutura. Ela não configura infraestrutura nem autoriza publicação. A aplicação **não está certificada como pronta para produção**.
+
+### Arquitetura e inventário atual
+
+- Frontend React/Vite e API PHP são componentes separados no código; `npm --workspace frontend run build` gera os arquivos estáticos em `frontend/dist`. Para o staging gratuito aprovado, o plano é empacotar ambos em um serviço web Render e servi-los na mesma origem, evitando dependência de cookies cross-site. O container usa fallback de SPA para `index.html` em rotas como `/login` e `/booking/:slug`.
+- `php-backend/public/index.php` é o front controller PHP e `/api/health/live` é liveness; `/api/health/ready` verifica PostgreSQL. O servidor PHP embutido em `php -S` é somente local/teste; produção exige PHP-FPM ou runtime equivalente configurado pela plataforma. O backend Node foi removido após validação integrada da API PHP.
+- PostgreSQL é dependência externa da aplicação. O único `docker-compose.yml` existente é para desenvolvimento local: credenciais de demonstração, volume persistente e bind de PostgreSQL limitado a `127.0.0.1:5432`. **Não o use como Compose de produção nem exponha essa porta publicamente.**
+- A topologia de staging escolhida, ainda não provisionada, é um serviço Docker no Render Free para frontend + API na mesma origem, Neon Free para PostgreSQL e Resend Free para SMTP. Cloudflare Pages fica fora desta topologia inicial para evitar separar a sessão clínica em uma origem diferente. Os limites de gratuidade incluem suspensão após inatividade e não são adequados para produção com dados reais.
+- O `Dockerfile` e a configuração Apache deste repositório preparam o serviço único para Render; eles não criam nem publicam recursos. O build define `VITE_API_URL=/api`; `CORS_ORIGIN`, banco, SMTP e segredos ainda precisam ser fornecidos no ambiente do serviço após uma implantação explicitamente autorizada. O build da imagem ainda não foi validado: Docker Desktop não iniciou neste ambiente. Nenhum domínio próprio, região ou política de disponibilidade foi definido.
+- Não há versão/runtime PHP de produção fixado nem imagem de aplicação. Definir e validar a versão e configuração PHP-FPM compatíveis com o código no pipeline/ambiente escolhido antes de publicar. Node.js é necessário apenas para as ferramentas e os testes do frontend.
+
+### Preparação do ambiente e publicação
+
+1. A topologia de staging gratuito foi escolhida: serviço único Docker no Render, Neon PostgreSQL e Resend SMTP, sem Cloudflare Pages separado. Antes de provisionar, ainda definir região, nome/URL, responsável, rede, disponibilidade e plano de rollback. Para produção, selecionar e aprovar uma topologia separada; não assumir que os limites gratuitos são aceitáveis.
+2. Instalar dependências de forma reproduzível com `npm ci` a partir da raiz e do `package-lock.json`. Executar os testes antes de publicar e guardar o artefato de build aprovado.
+3. Para builds separados, fornecer `VITE_API_URL` como URL HTTPS canônica da API, terminando em `/api`. No container unificado de staging, `/api` aponta para a mesma origem e evita cookies cross-site. A variável é incorporada ao artefato; ela não é segredo. Não gravar tokens, senhas ou credenciais em variáveis `VITE_*`.
+4. Publicar o conteúdo de `frontend/dist` em host estático com fallback de rotas para `index.html`, HTTPS, certificados renovados automaticamente e cabeçalhos de segurança/CSP compatíveis com o frontend. A CSP das respostas da API PHP **não** protege o HTML servido pelo host estático. Validar os cabeçalhos e a navegação por URL direta no domínio final.
+5. Executar a API PHP em PHP-FPM ou runtime equivalente; o servidor embutido `php -S` é somente local/teste. Configurar `NODE_ENV=production`, `JWT_SECRET`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL=true` e `CORS_ORIGIN` no ambiente do processo. `SESSION_COOKIE_SAME_SITE` aceita `lax`, `strict` ou `none` e usa `lax` por padrão; cookies de sessão são `Secure` em produção. Usar `none` somente quando frontend e API realmente precisarem de contexto cross-site e ambos estiverem em HTTPS; preferir hospedagem same-site, pois navegadores podem bloquear cookies de terceiros. `DB_SSL_CA_PATH` é opcional e somente necessário quando o provedor exigir CA própria; `JWT_EXPIRES_IN` é opcional e tem padrão de 8 horas. Configurar a porta e o encaminhamento HTTP no servidor web/plataforma. O runtime recusa segredo JWT ausente/menor que 32 bytes, variáveis obrigatórias ausentes, banco em loopback, credenciais padrão locais, CORS sem uma única origem HTTPS e TLS PostgreSQL desativado.
+6. Configurar `CORS_ORIGIN` como a origem HTTPS exata do frontend, sem caminho. Configurar DNS e HTTPS para frontend e API; manter comunicação API–PostgreSQL em rede privada sempre que suportado. A API não termina HTTPS por si só neste repositório; confirmar que o proxy/load balancer protege a conexão externa e encaminha corretamente para o processo.
+7. Injetar segredos a partir de um gestor aprovado, com acesso mínimo, rotação e auditoria. Não versionar `.env`; `.gitignore` ignora `.env` e `.env.*` e permite somente `.env.example`. A revisão local encontrou apenas arquivos `.env.example` versionados, sem arquivos `.env` rastreados. Se um arquivo `.env` existir no ambiente local, mantê-lo fora de qualquer contexto de build/imagem; um futuro `.dockerignore` deve excluí-lo explicitamente. Não imprimir valores reais durante verificações.
+
+### Conexões PostgreSQL, proxy e limites de escala
+
+- Confirme o ciclo de conexão do PDO e dimensione `PHP-FPM workers × conexões concorrentes` contra o limite PostgreSQL, reservando folga para migrations, administração e monitoramento.
+- `DB_SSL=true` em produção ativa validação de certificado (`rejectUnauthorized: true`). Manter verificação de hostname/cadeia TLS; não desativar validação para contornar erros. Conceder à identidade runtime apenas permissões necessárias à operação da aplicação; migrations e provisionamento devem usar identidade/credencial separada.
+- A API PHP usa `REMOTE_ADDR` como IP de origem e não confia automaticamente em `X-Forwarded-For`. Após escolher a topologia, restringir acesso direto à API e configurar o proxy para transmitir a origem somente a partir de proxies controlados; testar rate limit e falsificação de cabeçalhos antes de publicar.
+- Todos os limitadores usam memória por processo. Eles reiniciam com o processo e não agregam contagens entre réplicas; não escalar horizontalmente contando com limite global efetivo até definir e monitorar um store compartilhado e sua política de falha.
+- O código atual não implementa retries distribuídos nem métrica de pool. Testar readiness, saturação e recuperação com os limites do PostgreSQL escolhido, sem usar banco de produção para testes de carga.
+
+### Recuperação de senha e provisionamento de contas
+
+- O link **Criar conta** informa que uma conta deve ser provisionada pelo administrador da clínica; cadastro público de usuário/clínica não está habilitado. Não transforme a rota autenticada `POST /api/auth/register` em rota pública nem aceite `clinic_id` ou papel fornecidos pelo cliente.
+- A recuperação usa `POST /api/auth/password-reset/request` e `POST /api/auth/password-reset/confirm`. Antes de habilitá-la em qualquer ambiente, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` e `PUBLIC_APP_URL` no gestor de segredos/runtime do backend. `PUBLIC_APP_URL` deve ser a origem do frontend, sem caminho, e HTTPS em produção. O `.env.example` só documenta nomes vazios; não copie senhas reais para o repositório.
+- A migration revisável `database/migrations/011_password_reset_tokens.sql` cria armazenamento por conta clínica de hashes de tokens. Ela não foi aplicada. Para bancos existentes, confirme o banco de destino, o estado dos objetos e as permissões, revise a migration, aprove-a pelo processo de change management e planeje backup/rollback antes de executá-la. O `database/schema.sql` atualizado atende instalações novas; não execute nenhum dos dois sem aprovação.
+- Tokens expirando em 30 minutos são de uso único, vinculados ao usuário e à clínica, e só aparecem no conteúdo do e-mail. Uma redefinição aumenta `users.token_version`, invalidando JWTs existentes. Para endereços associados a mais de uma conta, o e-mail contém links separados; a resposta HTTP continua genérica para não enumerar contas.
+- Os limitadores específicos de solicitação/redefinição e o limitador geral de autenticação são em memória. Em múltiplas réplicas a contagem não é global. Não alegar proteção distribuída até configurar um store compartilhado e testar sua disponibilidade e política de falha.
+- Os limites atuais são 5 tentativas por IP a cada 15 minutos para solicitação/confirmação, 3 solicitações por endereço (chave armazenada como hash) por hora, além do limite geral de autenticação já existente. Tokens consumidos/expirados não são apagados automaticamente; definir retenção e uma rotina de limpeza aprovada antes de manter o recurso por longo prazo.
+- Os testes de unidade usam destinatários e SMTP sintéticos/simulados; eles não validam entrega real. Antes de liberar o serviço, validar entrega e expiração em staging com uma caixa controlada, sem registrar links/tokens, e revisar SPF/DKIM/DMARC, reputação, monitoramento e tratamento de bounce com o provedor escolhido.
+
+### Logs, health checks e encerramento
+
+- Logs são enviados por `console` para stdout/stderr, apropriados para captura pela plataforma, mas o repositório não define formato estruturado, retenção, APM, métricas nem alertas. Configurar retenção, controle de acesso e alertas de falhas/latência/uso conforme a plataforma, evitando corpos de requisição, tokens, senhas e dados pessoais.
+- Em produção, o middleware de erro retorna mensagem genérica e `requestId`; o log de erro registra somente categoria, request ID e status. A checagem de readiness responde apenas `ready`/`not_ready` e não serializa erro de banco. Liveness/readiness não divulgam configuração nem credenciais.
+- `SIGTERM`/`SIGINT` iniciam encerramento HTTP e fechamento do pool; validar no runtime escolhido que o período de grace do orquestrador comporta requisições em andamento e fechamento do pool. O processo usa os sinais para shutdown controlado.
+- Verificar liveness e readiness no ambiente de staging com a política de probes do runtime. Não expor endpoints administrativos ou adicionar informação de banco às respostas de health.
+
+### Schema, migrations e administrador inicial
+
+- Não foi executada migration nesta preparação. Para banco novo, o README identifica `database/schema.sql` como snapshot atual; ele não é seguro para reexecução. Para banco existente, obter inventário somente leitura e confirmar cada migration pendente em ordem, com backup aprovado, change review, janela, plano de recuperação e operador autorizado. O projeto não possui migration runner nem ledger, e a migration 010 não deve ser reaplicada sobre o snapshot atual que já cria suas tabelas.
+- Não dar privilégios DDL à identidade runtime da API. Aplicar mudanças pelo cliente/processo aprovado da equipe de banco, após verificar destino, estado anterior e checksum/SQL revisado. Registrar evidência externa; nunca improvisar `IF NOT EXISTS`, baseline ou rollback em produção.
+- Para provisionar a conta global inicial, o script PHP é `php-backend/bin/provision-platform-admin.php`; exige `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_NAME`, `PLATFORM_ADMIN_PASSWORD` e `PLATFORM_ADMIN_PROVISIONING_CONFIRM=CREATE_PLATFORM_ADMIN`. O operador deve confirmar que o schema/tabelas existem e que o destino é o correto, fornecer os valores por mecanismo efêmero seguro e executar o script uma única vez com identidade restrita. O script cria a conta e a auditoria; não atualiza conta existente. Definir `NOA_ENV_FILE=php://memory` para evitar carregar configuração local acidental.
+
+### Backup, rollback e verificações pós-publicação
+
+- Backup/PITR, retenção, cópias independentes, alertas e periodicidade de restauração continuam dependentes do banco/provedor e da política ainda não definida. Definir RPO/RTO, responsáveis e acesso antes de armazenar dados reais. Testar restauração em destino isolado autorizado, validar integridade, duração e procedimento de redirecionamento; não restaurar sobre o primário em um exercício.
+- Rollback de aplicação deve apontar a artefato/configuração previamente aprovada. Não reverter schema automaticamente: não há down migrations aprovadas e alterações podem ser incompatíveis ou conter dados/auditoria. Para falha de migration, parar, preservar evidência sem segredos, obter avaliação do DBA e seguir change process; não apagar objetos/dados para “voltar”.
+- Após publicação em staging, verificar DNS/certificado HTTPS, redirecionamento HTTP→HTTPS, CSP/cabeçalhos do host estático, rotas diretas e refresh SPA, CORS para origem aprovada e rejeição de origem não autorizada, API liveness/readiness, conectividade PostgreSQL TLS, login/fluxos autorizados, logs sem dados sensíveis, limites de conexão e shutdown por `SIGTERM`. Registrar versão do artefato, configuração (sem valores secretos), resultado e responsável. Só promover depois de revisão e aprovação do ambiente.
+- Permanecem pendentes: provisionamento e validação do staging, domínio/região, confirmação de proxy e headers no runtime, política de escala e store compartilhado de rate limit, gestão de segredos, permissões efetivas do banco, processo CI/CD/rollback, backup/PITR e RPO/RTO, monitoramento/alertas/responsáveis e validação em staging. A configuração CSP/headers do container precisa ser verificada após o build e deploy.
+
+### SEO e metadados públicos
+
+`frontend/public/robots.txt` e `frontend/public/llms.txt` existem e são copiados para o build. O `robots.txt` permite a área pública e exclui login e `/booking/`; o `llms.txt` descreve o produto sem domínios. Não existe `sitemap.xml`. Ele só deve ser criado quando a equipe aprovar um domínio canônico e revisar quais páginas públicas existentes devem ser indexadas; não incluir rotas privadas, administrativas, dados de clínicas ou endpoints da API. Não inventar páginas para completar sitemap.
 
 ## Migration 010 — revisão, aplicação e recuperação
 
@@ -80,7 +145,7 @@ Se a execução falhar, interromper a implantação, preservar a saída e confir
 
 - A administração global usa `platform_admin_accounts`, separada de `users` e dos papéis por clínica. A audiência JWT global é diferente da audiência de sessão clínica; a API verifica assinatura, expiração, status e versão da sessão no banco em cada requisição.
 - Antes de ativar `/platform-admin`, revisar e aplicar manualmente `database/migrations/010_platform_admin_accounts.sql` conforme o processo de mudança de banco aprovado. A aplicação não executa migrations automaticamente.
-- Provisionar o primeiro proprietário por operador autorizado com `backend/src/scripts/provision-platform-admin.js`, usando variáveis efêmeras injetadas diretamente no processo a partir de cofre aprovado. Não armazenar a senha em `.env`, no frontend ou no histórico do shell; não reutilizar contas administrativas das clínicas.
+- Provisionar o primeiro proprietário por operador autorizado com `php-backend/bin/provision-platform-admin.php`, usando variáveis efêmeras injetadas diretamente no processo a partir de cofre aprovado. Definir `NOA_ENV_FILE=php://memory` para evitar carregar `backend/.env`. Não armazenar a senha em arquivo, no frontend ou no histórico do shell; não reutilizar contas administrativas das clínicas.
 - Suspensão/revogação exige atualizar a conta por procedimento de banco autorizado e incrementar `token_version`; mudanças de status globais não são oferecidas pela interface atual.
 - Para suspender uma conta, um operador autorizado deve identificar exatamente a conta, executar uma alteração transacional revisada que defina `status = 'suspended'` e incremente `token_version`, confirmar que exatamente uma linha foi afetada e verificar o estado pelo identificador da conta. A atualização de versão revoga tokens emitidos. Não há endpoint administrativo de suspensão; não alterar outras contas nem remover seus registros de auditoria.
 - Consultas administrativas e eventos de autenticação são registrados em `platform_audit_logs`. Não registrar senha, JWT, e-mail digitado em falha de login ou outros segredos. Definir controle de acesso, retenção, monitoramento e revisão periódica dos logs antes de produção.
@@ -89,15 +154,15 @@ Se a execução falhar, interromper a implantação, preservar a saída e confir
 
 ### Provisionamento seguro da conta global
 
-O script `backend/src/scripts/provision-platform-admin.js` cria uma única conta e um evento de auditoria dentro da mesma transação. Não é um fluxo de cadastro público, não atualiza conta existente e não contém senha padrão. Exige:
+O script `php-backend/bin/provision-platform-admin.php` cria uma única conta e um evento de auditoria dentro da mesma transação. Não é um fluxo de cadastro público, não atualiza conta existente e não contém senha padrão. Exige:
 
 - migration 010 aplicada e verificada no banco de destino;
 - aprovação e autorização operacional para criar a identidade global;
-- ambiente Node configurado com `NODE_ENV`, `JWT_SECRET` e parâmetros DB exigidos para o ambiente pelo `backend/src/config/runtimeConfig.js`;
+- ambiente PHP configurado com `NODE_ENV`, `JWT_SECRET` e parâmetros de banco exigidos pelo `php-backend/src/bootstrap.php`;
 - `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_NAME`, `PLATFORM_ADMIN_PASSWORD` e `PLATFORM_ADMIN_PROVISIONING_CONFIRM=CREATE_PLATFORM_ADMIN` disponíveis no processo;
 - privilégio INSERT somente nas tabelas administrativas necessárias, sem disponibilizar credencial DDL ou superuser à API.
 
-O script importa a configuração do banco, que chama `dotenv.config()` e procura `.env` relativo ao diretório de trabalho. Executá-lo com um diretório de trabalho controlado **sem arquivo `.env`**, injetando configuração apenas pelo mecanismo seguro aprovado, para não carregar acidentalmente configurações locais. Nunca fornecer senha como argumento de linha de comando, digitá-la em comando registrado, habilitar shell tracing ou despejar o ambiente em logs. Usar cofre/gerenciador aprovado com injeção efêmera no processo e política de logs que mascare valores; o método específico de injeção depende da plataforma e permanece pendente de escolha. Ao terminar, remover a injeção temporária segundo o procedimento do mecanismo utilizado.
+O script importa `php-backend/src/bootstrap.php`, que carrega `backend/.env` por padrão. Definir `NOA_ENV_FILE=php://memory` e injetar configuração apenas pelo mecanismo seguro aprovado, para não carregar acidentalmente valores locais. Nunca fornecer senha como argumento de linha de comando, digitá-la em comando registrado, habilitar shell tracing ou despejar o ambiente em logs. Usar cofre/gerenciador aprovado com injeção efêmera no processo e política de logs que mascare valores; o método específico de injeção depende da plataforma e permanece pendente de escolha. Ao terminar, remover a injeção temporária segundo o procedimento do mecanismo utilizado.
 
 O script retorna somente um identificador de conta no sucesso e uma mensagem genérica na falha. Registrar o identificador e o resultado no registro de mudança, sem copiar o ambiente ou credenciais. Um operador autorizado pode verificar, por consulta de leitura limitada ao ID emitido, e-mail e estado da conta; não exibir hash de senha. O script não é idempotente: e-mail já cadastrado resulta em falha e não deve ser contornado apagando a conta.
 
@@ -110,7 +175,7 @@ Todos os itens abaixo exigem evidência e aprovação apropriadas. Este checklis
 | Área | Verificação necessária | Situação |
 |---|---|---|
 | Ambiente/configuração | Separar desenvolvimento, teste e produção; conferir nomes de variáveis obrigatórias e origem de configuração sem registrar seus valores; confirmar processo de rotação. | PENDENTE |
-| Domínio e HTTPS | Aprovar domínio canônico e URLs; configurar TLS e renovação; testar HTTPS, cabeçalhos e CSP no host frontend e na API separadamente. Não há domínio/hosting confirmado. | PENDENTE |
+| Domínio e HTTPS | O staging planeja usar a URL HTTPS gerada pelo Render, ainda não provisionada; aprovar domínio canônico para produção e testar HTTPS, cabeçalhos e CSP no runtime. | PENDENTE |
 | Segredos | Selecionar cofre aprovado; limitar leitura por serviço/operador; definir rotação e revogação; impedir segredos em logs, builds, documentação e histórico. | PENDENTE |
 | PostgreSQL/acesso | Selecionar provedor/região; separar credenciais runtime e migration; conceder menor privilégio; confirmar TLS, rede, monitoramento e recuperação. | PENDENTE |
 | Backups/restauração | Aprovar destino independente, criptografia, frequência, retenção, alertas e responsáveis; executar restauração em destino isolado e registrar evidência. | PENDENTE |
@@ -223,12 +288,11 @@ O proprietário operacional deve manter evidência datada de backups, verificaç
 - Não há configuração de implantação no repositório que determine se a produção usará uma instância ou múltiplas; portanto, a topologia efetiva permanece **NÃO VERIFICADA**. Em uma instância, o limite só é efetivo enquanto aquele processo estiver ativo. Em múltiplas instâncias, cada processo mantém contadores separados e a proteção agregada pode ser excedida.
 - Antes de habilitar mais de uma instância, a equipe de infraestrutura deve escolher, provisionar e monitorar um armazenamento compartilhado compatível com `rate-limiter-flexible`, definir autenticação, rede, custo, retenção/expiração das chaves e comportamento quando o armazenamento estiver indisponível. Nenhum Redis ou outro serviço foi configurado ou adicionado por este runbook.
 - Manter os limites atuais. Não contornar falhas do armazenamento compartilhado com fallback silencioso para limites locais; definir e aprovar previamente a política de falha (bloquear ou permitir com alerta) conforme endpoint e risco.
-- `trust proxy` não está habilitado. `req.ip` usa o endereço da conexão direta e o Express não confia em `X-Forwarded-For` recebido do cliente.
-- Atrás de proxy, isso pode agrupar tráfego no endereço do proxy. Não habilitar confiança genérica de proxy: a topologia e a lista/número de proxies confiáveis devem ser configurados e validados pelo responsável de infraestrutura antes de alterar essa política.
+- O PHP usa `REMOTE_ADDR` e não confia automaticamente em `X-Forwarded-For`. Atrás de proxy, isso pode agrupar tráfego no endereço do proxy. A infraestrutura deve definir a origem de IP confiável e bloquear cabeçalhos forjados antes de alterar essa política.
 
 ## CSP e hosting do frontend
 
-O Helmet configurado em `backend/src/app.js` adiciona cabeçalhos às respostas da API. A política de estilos da API permite somente `'self'`; o frontend é um build Vite separado e esta política não configura nem comprova a CSP do host que entrega `frontend/dist`. A implantação deve definir e verificar sua própria CSP e cabeçalhos no host do frontend, sem assumir que os headers da API protegem documentos HTML servidos por outra plataforma. Nenhum host de produção foi inspecionado.
+O front controller em `php-backend/public/index.php` adiciona cabeçalhos às respostas da API. O frontend é um build Vite separado e esses cabeçalhos não configuram nem comprovam a CSP do host que entrega `frontend/dist`. A implantação deve definir e verificar sua própria CSP e cabeçalhos no host do frontend, sem assumir que os headers da API protegem documentos HTML servidos por outra plataforma. Nenhum host de produção foi inspecionado.
 
 ## Privilégios PostgreSQL e evidências de produção
 
@@ -255,7 +319,9 @@ Antes de declarar produção validada, obter evidências datadas e sem segredos 
 
 O backend gera um `X-Request-ID` para correlação básica e evita registrar detalhes de erro nas respostas/logs de produção. Métricas, alertas, retenção de logs, APM e monitoramento externos dependem da plataforma de operação e estão **PENDENTES DE INFRAESTRUTURA**.
 
-## Preparação isolada para validação de migrations
+## Histórico: preparação isolada para validação de migrations
+
+> Registro histórico anterior à remoção do backend Node, concluída após os testes integrados da API PHP. Referências a `backend/src`, `backend/test`, Express e aos comandos npm do workspace backend abaixo descrevem o código que existia durante essas etapas; não são instruções executáveis para a estrutura atual. O histórico é mantido para rastreabilidade.
 
 Esta seção prepara uma validação futura; não aplica schema ou migrations e não autoriza conexão a bancos existentes.
 

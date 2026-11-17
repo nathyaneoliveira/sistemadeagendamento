@@ -3,11 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "workspaces": [
-    "backend",
     "frontend"
   ],
   "scripts": {
-    "dev:backend": "npm --workspace backend run dev",
+    "dev:backend": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\php-backend\\run.ps1",
     "dev:frontend": "npm --workspace frontend run dev",
     "build:frontend": "npm --workspace frontend run build",
     "db:up": "docker compose up -d postgres",

@@ -68,13 +68,14 @@ function defaultFetch(url, options = {}) {
     pathname: parsedUrl.pathname,
     searchParams: parsedUrl.searchParams,
     method: options.method || 'GET',
+    credentials: options.credentials,
     headers: new Headers(options.headers || {}),
     body: options.body ? JSON.parse(options.body) : null,
   };
   calls.push(call);
 
   if (call.pathname === '/api/auth/login') {
-    return Promise.resolve(response(200, { data: { token: 'synthetic-clinic-token', user: clinicUser } }));
+    return Promise.resolve(response(200, { data: { user: clinicUser } }));
   }
   if (call.pathname === '/api/platform/auth/login') {
     return Promise.resolve(response(200, { data: { token: 'synthetic-platform-token', user: platformUser } }));
@@ -83,7 +84,25 @@ function defaultFetch(url, options = {}) {
     return Promise.resolve(response(200, { data: clinicUser }));
   }
   if (call.pathname === '/api/public/clinics/synthetic-clinic') {
-    return Promise.resolve(response(200, { data: { name: 'Clínica Sintética', timezone: 'UTC' } }));
+    return Promise.resolve(response(200, {
+      data: {
+        name: 'Clínica Sintética',
+        timezone: 'UTC',
+        privacyPolicyUrl: 'https://clinic.example.invalid/privacy',
+      },
+    }));
+  }
+  if (call.pathname === '/api/settings') {
+    return Promise.resolve(response(200, {
+      data: { timezone: 'UTC', public_slug: 'synthetic-clinic', appointment_reminders_enabled: false },
+    }));
+  }
+  if (call.pathname === '/api/settings/privacy-profile') {
+    return Promise.resolve(response(200, {
+      data: call.method === 'POST'
+        ? call.body
+        : { legalName: '', cnpj: '', privacyEmail: '', privacyPolicyUrl: '' },
+    }));
   }
   if (call.pathname === '/api/platform/dashboard') {
     return Promise.resolve(response(200, { data: dashboardData }));
@@ -159,7 +178,12 @@ function storageFor(seed = {}) {
 }
 
 function setFetch(handler = defaultFetch) {
-  globalThis.fetch = (url, options) => handler(url, options);
+  globalThis.fetch = (url, options) => {
+    if (new URL(url).pathname === '/api/auth/csrf') {
+      return Promise.resolve(response(200, { data: { csrfToken: 'A'.repeat(43) } }));
+    }
+    return handler(url, options);
+  };
 }
 
 async function renderApp(pathname = '/', seed = {}) {
@@ -365,7 +389,112 @@ test('clínica: login inicial exige e-mail e senha e não mostra áreas protegid
 
   assert.match(textOf(root.toJSON()), /Entrar/);
   assert.equal(root.root.findAllByType('input').filter((input) => input.props.required).length, 2);
+  const authLinks = root.root.findAllByType('a').map((link) => textOf(link.children));
+  assert.ok(authLinks.includes('Esqueci minha senha'));
+  assert.ok(authLinks.includes('Criar conta'));
   assert.equal(buttonByText('Dashboard'), undefined);
+  assert.equal(calls.length, 0);
+});
+
+test('acesso: criar conta explica o provisionamento seguro sem simular cadastro', async () => {
+  await renderApp('/register');
+
+  assert.match(textOf(root.toJSON()), /Criar conta/);
+  assert.match(textOf(root.toJSON()), /administrador da sua clínica/);
+  assert.equal(root.root.findAllByType('form').length, 0);
+  assert.equal(calls.length, 0);
+});
+
+test('recuperação: pedido usa endpoint da API e mostra resposta genérica', async () => {
+  await renderApp('/forgot-password');
+  const input = root.root.findByType('input');
+  await act(async () => {
+    changeInput(input, 'person@example.invalid');
+  });
+  await submitForm();
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].pathname, '/api/auth/password-reset/request');
+  assert.deepEqual(calls[0].body, { email: 'person@example.invalid' });
+  assert.match(textOf(root.toJSON()), /Se o endereço estiver associado a uma conta ativa/);
+});
+
+test('recuperação: erro da API é apresentado sem exibir estado de sucesso', async () => {
+  setFetch(async () => response(503, { message: 'A recuperação de senha está temporariamente indisponível.' }));
+  await renderApp('/forgot-password');
+  await act(async () => {
+    changeInput(root.root.findByType('input'), 'person@example.invalid');
+  });
+  await submitForm();
+
+  assert.match(alertText(), /temporariamente indisponível/);
+  assert.equal(root.root.findAll((node) => node.props.role === 'status').length, 0);
+});
+
+test('recuperação: botão bloqueia envios duplicados enquanto o pedido está pendente', async () => {
+  let resolveRequest;
+  let requestCount = 0;
+  setFetch(() => {
+    requestCount += 1;
+    return new Promise((resolve) => {
+      resolveRequest = resolve;
+    });
+  });
+  await renderApp('/forgot-password');
+  await act(async () => {
+    changeInput(root.root.findByType('input'), 'person@example.invalid');
+  });
+
+  let pendingRequest;
+  await act(async () => {
+    pendingRequest = root.root.findByType('form').props.onSubmit({ preventDefault() {} });
+  });
+  assert.equal(buttonByText('Enviando...').props.disabled, true);
+  await act(async () => {
+    await root.root.findByType('form').props.onSubmit({ preventDefault() {} });
+  });
+  assert.equal(requestCount, 1);
+
+  resolveRequest(response(202, { message: 'accepted' }));
+  await act(async () => pendingRequest);
+  assert.match(textOf(root.toJSON()), /Se o endereço estiver associado/);
+});
+
+test('recuperação: senha nova confirma igualdade e envia o token no corpo uma vez', async () => {
+  await renderApp(`/reset-password#token=${'A'.repeat(43)}`);
+  const inputs = root.root.findAllByType('input');
+  assert.equal(inputs.length, 2);
+
+  await act(async () => {
+    changeInput(inputs[0], 'A-compliant-password-42');
+    changeInput(inputs[1], 'A-compliant-password-42');
+  });
+  await submitForm();
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].pathname, '/api/auth/password-reset/confirm');
+  assert.deepEqual(calls[0].body, {
+    token: 'A'.repeat(43),
+    password: 'A-compliant-password-42',
+    confirmPassword: 'A-compliant-password-42',
+  });
+  assert.match(textOf(root.toJSON()), /Senha redefinida/);
+});
+
+test('recuperação: links ausentes e senhas divergentes não chamam a API', async () => {
+  await renderApp('/reset-password');
+  assert.match(textOf(root.toJSON()), /inválido ou incompleto/);
+  assert.equal(root.root.findAllByType('form').length, 0);
+
+  await renderApp(`/reset-password#token=${'B'.repeat(43)}`);
+  const inputs = root.root.findAllByType('input');
+  await act(async () => {
+    changeInput(inputs[0], 'A-compliant-password-42');
+    changeInput(inputs[1], 'A-different-password-42');
+  });
+  await submitForm();
+
+  assert.match(alertText(), /não coincidem/);
   assert.equal(calls.length, 0);
 });
 
@@ -392,17 +521,18 @@ test('clínica: credenciais inválidas e falha da API permanecem na tela de logi
   assert.equal(storage.getItem('clinic_token'), null);
 });
 
-test('clínica: login válido carrega dados com o token clínico e logout limpa a sessão', async () => {
+test('clínica: login usa cookie HttpOnly sem persistir token e logout limpa a sessão', async () => {
   await renderApp('/login');
   await enterCredentials('clinic@example.invalid', 'synthetic-password');
   await submitForm();
 
-  assert.equal(storage.getItem('clinic_token'), 'synthetic-clinic-token');
+  assert.equal(storage.getItem('clinic_token'), null);
+  assert.equal(storage.getItem('clinic_session_active'), '1');
   assert.equal(currentRoute, '/clinic/dashboard');
   assert.match(textOf(root.toJSON()), /Painel/);
   assert.ok(calls.some((call) => call.pathname === '/api/appointments'));
   assert.ok(calls.filter((call) => call.pathname.startsWith('/api/appointments')).every(
-    (call) => call.headers.get('authorization') === 'Bearer synthetic-clinic-token'
+    (call) => call.headers.get('authorization') === null && call.credentials === 'include'
   ));
   await act(async () => {
     buttonByText('Agenda').props.onClick();
@@ -419,6 +549,7 @@ test('clínica: login válido carrega dados com o token clínico e logout limpa 
     await root.root.findByProps({ 'aria-label': 'Sair' }).props.onClick();
   });
   assert.equal(storage.getItem('clinic_token'), null);
+  assert.equal(storage.getItem('clinic_session_active'), null);
   assert.equal(currentRoute, '/login');
   assert.match(textOf(root.toJSON()), /Entrar/);
   assert.doesNotMatch(textOf(root.toJSON()), /Pessoa Sintética/);
@@ -433,6 +564,7 @@ test('clínica: login válido carrega dados com o token clínico e logout limpa 
 
 test('clínica: respostas pendentes de uma sessão encerrada não reaparecem na próxima sessão', async () => {
   let loginCount = 0;
+  let appointmentRequestCount = 0;
   const oldAppointmentResponses = [];
   const newAppointmentResponses = [];
   setFetch((url, options = {}) => {
@@ -440,16 +572,13 @@ test('clínica: respostas pendentes de uma sessão encerrada não reaparecem na 
     const authorization = new Headers(options.headers || {}).get('authorization');
     if (parsedUrl.pathname === '/api/auth/login') {
       loginCount += 1;
-      const token = loginCount === 1 ? 'first-clinic-token' : 'second-clinic-token';
       return Promise.resolve(response(200, {
-        data: { token, user: { ...clinicUser, name: `Usuária ${loginCount}` } },
+        data: { user: { ...clinicUser, name: `Usuária ${loginCount}` } },
       }));
     }
-    if (parsedUrl.pathname === '/api/appointments' && authorization === 'Bearer first-clinic-token') {
-      return new Promise((resolve) => oldAppointmentResponses.push(resolve));
-    }
-    if (parsedUrl.pathname === '/api/appointments' && authorization === 'Bearer second-clinic-token') {
-      return new Promise((resolve) => newAppointmentResponses.push(resolve));
+    if (parsedUrl.pathname === '/api/appointments' && authorization === null) {
+      const responses = appointmentRequestCount++ === 0 ? oldAppointmentResponses : newAppointmentResponses;
+      return new Promise((resolve) => responses.push(resolve));
     }
     return defaultFetch(url, options);
   });
@@ -502,7 +631,7 @@ test('clínica: token expirado no carregamento é removido e dados protegidos n�
     calls.push({ pathname });
     return response(401, { message: 'Sessão expirada.' });
   });
-  await renderApp('/clinic/dashboard', { clinic_token: 'synthetic-expired-token' });
+  await renderApp('/clinic/dashboard', { clinic_session_active: '1' });
   await settle();
 
   assert.equal(storage.getItem('clinic_token'), null);
@@ -516,7 +645,7 @@ test('clínica: controles de navegação respeitam o papel retornado pela API', 
     const pathname = new URL(url).pathname;
     calls.push({ pathname });
     if (pathname === '/api/auth/login') {
-      return response(200, { data: { token: 'synthetic-reception-token', user: { ...clinicUser, role: 'reception' } } });
+      return response(200, { data: { user: { ...clinicUser, role: 'reception' } } });
     }
     return response(200, { data: [] });
   });
@@ -528,6 +657,47 @@ test('clínica: controles de navegação respeitam o papel retornado pela API', 
   assert.equal(currentRoute, '/clinic/dashboard');
   assert.ok(buttonByText('Serviços'));
   assert.equal(buttonByText('Configurações'), undefined);
+});
+
+test('clínica: configura perfil de privacidade e publica somente o link no agendamento', async () => {
+  await renderApp('/login');
+  await enterCredentials('clinic@example.invalid', 'synthetic-password');
+  await submitForm();
+  await act(async () => {
+    buttonByText('Configurações').props.onClick();
+    await new Promise((resolve) => setImmediate(resolve));
+  });
+  await settle();
+
+  await act(async () => {
+    changeInput(root.root.findByProps({ name: 'privacyLegalName' }), 'Clínica Sintética Ltda.');
+    changeInput(root.root.findByProps({ name: 'privacyCnpj' }), '00.000.000/0001-00');
+    changeInput(root.root.findByProps({ name: 'privacyEmail' }), 'privacidade@clinic.example.invalid');
+    changeInput(root.root.findByProps({ name: 'privacyPolicyUrl' }), 'https://clinic.example.invalid/privacy');
+  });
+  const privacyForm = root.root.findAllByType('form')
+    .find((form) => textOf(form.props.children).includes('E-mail de privacidade'));
+  await act(async () => {
+    await privacyForm.props.onSubmit({ preventDefault() {} });
+  });
+
+  const saveCall = calls.find((call) => call.pathname === '/api/settings/privacy-profile' && call.method === 'POST');
+  assert.deepEqual(saveCall?.body, {
+    legalName: 'Clínica Sintética Ltda.',
+    cnpj: '00.000.000/0001-00',
+    privacyEmail: 'privacidade@clinic.example.invalid',
+    privacyPolicyUrl: 'https://clinic.example.invalid/privacy',
+  });
+  assert.match(textOf(root.toJSON()), /Dados de privacidade da clínica atualizados/);
+
+  await act(async () => root.unmount());
+  root = undefined;
+  await renderApp('/booking/synthetic-clinic');
+  await settle();
+  const privacyLink = root.root.findAllByType('a')
+    .find((link) => textOf(link.children) === 'Aviso de privacidade');
+  assert.equal(privacyLink?.props.href, 'https://clinic.example.invalid/privacy');
+  assert.equal(privacyLink?.props.rel, 'noopener noreferrer');
 });
 
 test('painel global: login exibe campos obrigatórios e falha de autenticação', async () => {
@@ -860,6 +1030,41 @@ test('rota pública de agendamento preserva o slug na consulta da clínica', asy
   assert.equal(calls.some((call) => call.pathname.startsWith('/api/auth/')), false);
 });
 
+test('portal do paciente envia o token do fragmento no corpo, nunca no caminho da API', async () => {
+  const portalToken = 'A'.repeat(43);
+  setFetch(async (url, options = {}) => {
+    const parsedUrl = new URL(url);
+    calls.push({
+      pathname: parsedUrl.pathname,
+      searchParams: parsedUrl.searchParams,
+      method: options.method || 'GET',
+      body: options.body ? JSON.parse(options.body) : null,
+    });
+    if (parsedUrl.pathname === '/api/public/appointment-management/lookup') {
+      return response(200, {
+        data: {
+          clinic_name: 'Clínica Sintética',
+          code: 'PUB-00000000000000000000',
+          scheduled_start: '2026-06-01T10:00:00.000Z',
+          timezone: 'UTC',
+          status: 'scheduled',
+        },
+      });
+    }
+    return response(200, { data: [] });
+  });
+  await renderApp(`/manage-appointment#token=${portalToken}`);
+  await settle();
+
+  const lookup = calls.find((call) => call.pathname === '/api/public/appointment-management/lookup');
+  assert.ok(lookup);
+  assert.equal(lookup.method, 'POST');
+  assert.deepEqual(lookup.body, { token: portalToken });
+  assert.equal(lookup.searchParams.has('token'), false);
+  assert.doesNotMatch(lookup.pathname, new RegExp(portalToken));
+  assert.match(textOf(root.toJSON()), /PUB-00000000000000000000/);
+});
+
 test('URLs inexistentes retornam à página inicial em vez de abrir login clínico', async () => {
   await renderApp('/rota-inexistente');
   await settle();
@@ -929,8 +1134,9 @@ test('BrowserRouter: histórico real do roteador restaura as seções clínicas 
   await submitForm();
   await settle();
   assert.equal(currentRoute, '/clinic/dashboard');
-  const clinicAuthorization = calls.find((call) => call.pathname === '/api/appointments')?.headers.get('authorization');
-  assert.ok(clinicAuthorization);
+  const clinicRequest = calls.find((call) => call.pathname === '/api/appointments');
+  assert.equal(clinicRequest?.headers.get('authorization'), null);
+  assert.equal(clinicRequest?.credentials, 'include');
 
   for (const [label, route] of [
     ['Profissionais', '/clinic/professionals'],
@@ -960,19 +1166,19 @@ test('BrowserRouter: histórico real do roteador restaura as seções clínicas 
   });
   await settle();
   assert.equal(currentRoute, '/clinic/settings');
-  assert.equal(storage.getItem('clinic_token'), 'synthetic-clinic-token');
+  assert.equal(storage.getItem('clinic_session_active'), '1');
 
   await act(async () => root.unmount());
   root = undefined;
-  await renderBrowserApp('/clinic/settings', { clinic_token: 'synthetic-clinic-token' });
+  await renderBrowserApp('/clinic/settings', { clinic_session_active: '1' });
   await settle();
   assert.equal(currentRoute, '/clinic/settings');
-  assert.equal(storage.getItem('clinic_token'), 'synthetic-clinic-token');
+  assert.equal(storage.getItem('clinic_session_active'), '1');
   assert.match(textOf(root.toJSON()), /Configurações/);
   assert.ok(calls.some((call) => call.pathname === '/api/auth/me'));
   assert.equal(
     calls.find((call) => call.pathname === '/api/auth/me').headers.get('authorization'),
-    clinicAuthorization
+    null
   );
 });
 

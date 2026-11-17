@@ -1,8 +1,11 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import App from './App.jsx';
+import AuthPages from './AuthPages.jsx';
 import CommercialSite from './CommercialSite.jsx';
 import PlatformAdmin from './PlatformAdmin.jsx';
 import PublicBooking from './PublicBooking.jsx';
+import PatientPortal from './PatientPortal.jsx';
+import ContractSignup from './ContractSignup.jsx';
 
 function PublicBookingRoute() {
   const { clinicSlug } = useParams();
@@ -21,11 +24,16 @@ export default function ApplicationRoutes() {
       <Route path="/recursos" element={<CommercialSite />} />
       <Route path="/sobre" element={<CommercialSite />} />
       <Route path="/contato" element={<CommercialSite />} />
+      <Route path="/contratacao" element={<ContractSignup />} />
+      <Route path="/register" element={<AuthPages />} />
+      <Route path="/forgot-password" element={<AuthPages />} />
+      <Route path="/reset-password" element={<AuthPages />} />
       <Route element={<App />}>
         <Route path="/login" element={null} />
         <Route path="/clinic/*" element={null} />
       </Route>
       <Route path="/booking/:clinicSlug" element={<PublicBookingRoute />} />
+      <Route path="/manage-appointment" element={<PatientPortal />} />
       <Route path="/platform-admin/*" element={<PlatformAdmin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

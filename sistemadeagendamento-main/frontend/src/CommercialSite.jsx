@@ -62,7 +62,7 @@ const FAQS = [
   },
   {
     question: 'Quais periodicidades são apresentadas?',
-    answer: 'Os preços são exibidos para os ciclos mensal, trimestral e anual. O sistema ainda não processa pagamentos nem cria assinaturas pela página.',
+    answer: 'Você pode contratar pelos ciclos mensal, trimestral ou anual. O pagamento é processado com segurança pelo Mercado Pago.',
   },
   {
     question: 'O que muda entre os planos?',
@@ -73,8 +73,8 @@ const FAQS = [
     answer: 'O preço principal mostra o total do período contratado. Também exibimos o equivalente mensal e a economia em relação a pagar mês a mês. Não há parcelamento informado.',
   },
   {
-    question: 'Já é possível pagar ou contratar uma assinatura?',
-    answer: 'Ainda não. A página é uma apresentação comercial. Não há checkout, cobrança real ou confirmação de contratação.',
+    question: 'Como funciona a contratação?',
+    answer: 'Informe os dados da clínica, escolha o plano e conclua o pagamento no Mercado Pago. O acesso é liberado após a confirmação da cobrança.',
   },
   {
     question: 'Preciso instalar alguma coisa?',
@@ -391,14 +391,13 @@ export default function CommercialSite() {
                         <li key={feature}><span aria-hidden="true">✓</span>{feature}</li>
                       ))}
                     </ul>
-                    <a className="commercial-button" href="/login">Começar agora <span aria-hidden="true">→</span></a>
-                    <p className="commercial-checkout-note">O botão leva ao login existente. Não cria uma assinatura nem inicia pagamento.</p>
+                    <a className="commercial-button" href={`/contratacao?plan=${encodeURIComponent(planId)}&cycle=${encodeURIComponent(selectedPeriod)}`}>Contratar plano <span aria-hidden="true">→</span></a>
                   </article>
                 );
               })}
             </div>
             <p className="commercial-pricing-disclaimer">
-              Valores apresentados como proposta comercial. Não há checkout, cobrança real nem contratação iniciada por esta página.
+              Pagamento processado pelo Mercado Pago. A assinatura é ativada após a confirmação da transação.
             </p>
           </div>
         </section>
@@ -451,7 +450,7 @@ export default function CommercialSite() {
           </div>
           <div className="commercial-footer-bottom">
             <span>NOA CONNECT</span>
-            <span>Apresentação comercial; contratação e pagamentos ainda não estão disponíveis.</span>
+            <span>Contrate online e pague com segurança pelo Mercado Pago.</span>
           </div>
         </div>
       </footer>

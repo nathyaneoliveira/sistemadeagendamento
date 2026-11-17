@@ -1,0 +1,210 @@
+{
+  "formatVersion": 1,
+  "documentationOnly": true,
+  "runtimeLoaded": false,
+  "description": "Inventario dos nomes de variaveis encontrados no projeto. Configure os valores no ambiente de execucao; este arquivo nao fornece valores de configuracao.",
+  "sources": [
+    "backend/.env.example",
+    "frontend/.env.example",
+    "php-backend/src/bootstrap.php"
+  ],
+  "variables": [
+    {
+      "name": "NODE_ENV",
+      "usedBy": ["PHP"],
+      "purpose": "Seleciona o ambiente de execucao (development, test ou production).",
+      "sensitive": false
+    },
+    {
+      "name": "VITE_API_URL",
+      "usedBy": ["Frontend"],
+      "purpose": "URL base da API incorporada ao build do Vite; build de producao exige HTTPS.",
+      "sensitive": false
+    },
+    {
+      "name": "DB_HOST",
+      "usedBy": ["PHP"],
+      "purpose": "Host do PostgreSQL; em producao, deve apontar para um host nao local.",
+      "sensitive": false
+    },
+    {
+      "name": "DB_PORT",
+      "usedBy": ["PHP"],
+      "purpose": "Porta do PostgreSQL.",
+      "sensitive": false
+    },
+    {
+      "name": "DB_NAME",
+      "usedBy": ["PHP"],
+      "purpose": "Nome do banco PostgreSQL.",
+      "sensitive": false
+    },
+    {
+      "name": "DB_USER",
+      "usedBy": ["PHP"],
+      "purpose": "Usuario do PostgreSQL.",
+      "sensitive": true
+    },
+    {
+      "name": "DB_PASSWORD",
+      "usedBy": ["PHP"],
+      "purpose": "Senha do usuario PostgreSQL.",
+      "sensitive": true
+    },
+    {
+      "name": "DB_SSL",
+      "usedBy": ["PHP"],
+      "purpose": "Habilita TLS na conexao PostgreSQL; TLS e exigido em producao.",
+      "sensitive": false
+    },
+    {
+      "name": "DB_SSL_CA_PATH",
+      "usedBy": ["PHP"],
+      "purpose": "Caminho opcional do bundle CA do PostgreSQL.",
+      "sensitive": false
+    },
+    {
+      "name": "JWT_SECRET",
+      "usedBy": ["PHP"],
+      "purpose": "Segredo de assinatura dos tokens; o PHP exige pelo menos 32 bytes.",
+      "sensitive": true
+    },
+    {
+      "name": "JWT_EXPIRES_IN",
+      "usedBy": ["PHP"],
+      "purpose": "Duracao dos tokens JWT.",
+      "sensitive": false
+    },
+    {
+      "name": "JWT_AUDIENCE",
+      "usedBy": ["PHP"],
+      "purpose": "Audience esperada para tokens JWT.",
+      "sensitive": false
+    },
+    {
+      "name": "CORS_ORIGIN",
+      "usedBy": ["PHP"],
+      "purpose": "Origem autorizada para CORS; em producao deve ser HTTPS.",
+      "sensitive": false
+    },
+    {
+      "name": "NOA_ENV_FILE",
+      "usedBy": ["PHP"],
+      "purpose": "Seleciona o arquivo de ambiente PHP; por padrao, o PHP procura backend/.env.",
+      "sensitive": false
+    },
+    {
+      "name": "SMTP_HOST",
+      "usedBy": ["PHP"],
+      "purpose": "Host SMTP para envio de e-mails.",
+      "sensitive": false
+    },
+    {
+      "name": "SMTP_PORT",
+      "usedBy": ["PHP"],
+      "purpose": "Porta SMTP.",
+      "sensitive": false
+    },
+    {
+      "name": "SMTP_SECURE",
+      "usedBy": ["PHP"],
+      "purpose": "Modo TLS SMTP; a documentacao do projeto define true para TLS implicito e false para STARTTLS.",
+      "sensitive": false
+    },
+    {
+      "name": "SMTP_USER",
+      "usedBy": ["PHP"],
+      "purpose": "Usuario SMTP.",
+      "sensitive": true
+    },
+    {
+      "name": "SMTP_PASSWORD",
+      "usedBy": ["PHP"],
+      "purpose": "Senha SMTP.",
+      "sensitive": true
+    },
+    {
+      "name": "SMTP_FROM",
+      "usedBy": ["PHP"],
+      "purpose": "Endereco de remetente SMTP.",
+      "sensitive": false
+    },
+    {
+      "name": "PUBLIC_APP_URL",
+      "usedBy": ["PHP"],
+      "purpose": "URL publica do frontend usada em fluxos de recuperacao de senha e checkout; HTTPS e exigido em producao.",
+      "sensitive": false
+    },
+    {
+      "name": "MERCADOPAGO_ACCESS_TOKEN",
+      "usedBy": ["PHP"],
+      "purpose": "Credencial privada de acesso ao Mercado Pago.",
+      "sensitive": true
+    },
+    {
+      "name": "MERCADOPAGO_WEBHOOK_SECRET",
+      "usedBy": ["PHP"],
+      "purpose": "Segredo para validacao de notificacoes do Mercado Pago.",
+      "sensitive": true
+    },
+    {
+      "name": "MERCADOPAGO_WEBHOOK_URL",
+      "usedBy": ["PHP"],
+      "purpose": "URL publica de notificacoes do Mercado Pago.",
+      "sensitive": false
+    },
+    {
+      "name": "MERCADOPAGO_API_BASE_URL",
+      "usedBy": ["PHP"],
+      "purpose": "URL base da API Mercado Pago; o codigo restringe seu uso a test.",
+      "sensitive": false
+    },
+    {
+      "name": "WHATSAPP_API_URL",
+      "usedBy": ["PHP"],
+      "purpose": "URL da API compativel de envio WhatsApp.",
+      "sensitive": false
+    },
+    {
+      "name": "WHATSAPP_API_TOKEN",
+      "usedBy": ["PHP"],
+      "purpose": "Token de acesso da API WhatsApp.",
+      "sensitive": true
+    },
+    {
+      "name": "FRONTEND_ENV_DIR",
+      "usedBy": ["Frontend build"],
+      "purpose": "Diretorio de variaveis de ambiente usado pela configuracao Vite.",
+      "sensitive": false
+    },
+    {
+      "name": "PLATFORM_ADMIN_EMAIL",
+      "usedBy": ["PHP provisioning command"],
+      "purpose": "E-mail da conta administrativa global inicial.",
+      "sensitive": true
+    },
+    {
+      "name": "PLATFORM_ADMIN_NAME",
+      "usedBy": ["PHP provisioning command"],
+      "purpose": "Nome da conta administrativa global inicial.",
+      "sensitive": false
+    },
+    {
+      "name": "PLATFORM_ADMIN_PASSWORD",
+      "usedBy": ["PHP provisioning command"],
+      "purpose": "Senha da conta administrativa global inicial.",
+      "sensitive": true
+    },
+    {
+      "name": "PLATFORM_ADMIN_PROVISIONING_CONFIRM",
+      "usedBy": ["PHP provisioning command"],
+      "purpose": "Confirmacao explicita exigida para provisionar a conta administrativa global.",
+      "sensitive": false
+    }
+  ],
+  "securityNotes": [
+    "Este JSON nao deve ser carregado como configuracao de runtime.",
+    "Nao coloque valores de segredo, tokens ou senhas neste arquivo nem em variaveis VITE_*.",
+    "Valores reais devem ser fornecidos pelo ambiente de execucao, nunca por este inventario."
+  ]
+}

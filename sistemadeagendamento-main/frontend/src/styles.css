@@ -170,6 +170,26 @@ a {
   gap: 17px;
 }
 
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 0.9rem;
+}
+
+.auth-links a,
+.auth-card > div a,
+.auth-card > section > div a {
+  color: var(--primary-strong);
+  text-decoration: none;
+}
+
+.auth-links a:hover,
+.auth-card > div a:hover,
+.auth-card > section > div a:hover {
+  text-decoration: underline;
+}
+
 .auth-clinic-selection h2 {
   margin: 18px 0 0;
   font-size: 1.2rem;
@@ -635,11 +655,48 @@ textarea {
   background: var(--success-soft);
 }
 
-.appointment-form {
+.appointment-form,
+.form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-top: 18px;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 550;
+}
+
+.form-grid input,
+.form-grid select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.form-grid input[type='checkbox'],
+.public-field input[type='checkbox'] {
+  width: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  accent-color: var(--primary-strong);
+}
+
+.form-grid label:has(input[type='checkbox']) span,
+.public-field span:has(input[type='checkbox']) {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
 }
 
 .appointment-form label,
@@ -1192,6 +1249,7 @@ td small {
   }
 
   .appointment-form,
+  .form-grid,
   .professional-management-controls {
     grid-template-columns: minmax(0, 1fr);
     gap: 13px;

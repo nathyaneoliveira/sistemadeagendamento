@@ -1,0 +1,134 @@
+{
+  "billingCycles": {
+    "monthly": { "label": "Mensal", "period": "mês", "months": 1 },
+    "quarterly": { "label": "Trimestral", "period": "trimestre", "months": 3 },
+    "yearly": { "label": "Anual", "period": "ano", "months": 12 }
+  },
+  "capabilities": {
+    "basicScheduling": { "label": "Agenda, disponibilidade e bloqueios", "status": "available" },
+    "appointments": { "label": "Agendamentos, reagendamentos e cancelamentos", "status": "available" },
+    "serviceManagement": { "label": "Gestão de serviços", "status": "available" },
+    "publicBooking": { "label": "Agendamento público", "status": "available" },
+    "appointmentReminders": { "label": "Lembretes de consulta", "status": "available" },
+    "waitlist": { "label": "Lista de espera", "status": "available" },
+    "basicDashboard": { "label": "Dashboard básico", "status": "available" },
+    "themes": { "label": "Tema claro e escuro", "status": "available" },
+    "userManagement": { "label": "Gestão de usuários administrativos", "status": "available" },
+    "basicPermissions": { "label": "Permissões básicas por perfil", "status": "available" },
+    "payments": { "label": "Registros internos de pagamento", "status": "available" },
+    "audit": { "label": "Consulta de registros de auditoria", "status": "available" },
+    "completeDashboard": { "label": "Dashboard completo", "status": "planned" },
+    "reports": { "label": "Relatórios", "status": "available" },
+    "advancedPermissions": { "label": "Permissões avançadas", "status": "planned" },
+    "advancedAudit": { "label": "Auditoria avançada", "status": "planned" },
+    "advancedReports": { "label": "Relatórios avançados", "status": "planned" },
+    "exports": { "label": "Exportações", "status": "planned" },
+    "advancedCustomization": { "label": "Personalização avançada", "status": "planned" }
+  },
+  "commercialPlanIds": ["essential", "professional"],
+  "planLimitResources": {
+    "professionals": { "table": "professionals", "label": "funcionários ativos", "where": " AND status = 'active'" },
+    "patients": { "table": "patients", "label": "pacientes" },
+    "appointments": { "table": "appointments", "label": "agendamentos" },
+    "services": { "table": "services", "label": "serviços" },
+    "users": { "table": "users", "label": "usuários administrativos", "where": " AND role IN ('admin', 'reception')" }
+  },
+  "plans": {
+    "essential": {
+      "id": "essential",
+      "name": "Essencial",
+      "description": "Para clínicas com até 5 funcionários ativos.",
+      "pricesInCents": { "monthly": 15000, "quarterly": 40000, "yearly": 140000 },
+      "limits": { "professionals": 5, "patients": null, "appointments": null, "services": null, "users": null },
+      "capabilities": {
+        "basicScheduling": true,
+        "appointments": true,
+        "serviceManagement": true,
+        "publicBooking": true,
+        "appointmentReminders": true,
+        "waitlist": true,
+        "basicDashboard": true,
+        "themes": true
+      },
+      "roadmapCapabilities": []
+    },
+    "professional": {
+      "id": "professional",
+      "name": "Profissional",
+      "description": "Para clínicas com mais de 5 funcionários ativos, sem limite de equipe.",
+      "pricesInCents": { "monthly": 25000, "quarterly": 67500, "yearly": 240000 },
+      "limits": { "professionals": null, "patients": null, "appointments": null, "services": null, "users": null },
+      "capabilities": {
+        "basicScheduling": true,
+        "appointments": true,
+        "serviceManagement": true,
+        "publicBooking": true,
+        "appointmentReminders": true,
+        "waitlist": true,
+        "basicDashboard": true,
+        "themes": true,
+        "userManagement": true,
+        "basicPermissions": true,
+        "payments": true,
+        "audit": true,
+        "reports": true
+      },
+      "roadmapCapabilities": []
+    },
+    "premium": {
+      "id": "premium",
+      "name": "Premium",
+      "description": "Limites ampliados para clínicas maiores.",
+      "pricesInCents": { "monthly": 40000, "quarterly": 108000, "yearly": 384000 },
+      "limits": { "professionals": null, "patients": null, "appointments": null, "services": null, "users": null },
+      "capabilities": {
+        "basicScheduling": true,
+        "appointments": true,
+        "serviceManagement": true,
+        "publicBooking": true,
+        "appointmentReminders": true,
+        "waitlist": true,
+        "basicDashboard": true,
+        "themes": true,
+        "userManagement": true,
+        "basicPermissions": true,
+        "payments": true,
+        "audit": true,
+        "reports": true,
+        "advancedPermissions": false,
+        "advancedAudit": false,
+        "advancedReports": false,
+        "exports": false,
+        "advancedCustomization": false
+      },
+      "roadmapCapabilities": ["completeDashboard", "reports", "advancedPermissions", "advancedAudit", "advancedReports", "exports", "advancedCustomization"],
+      "legacy": true,
+      "compatibility": { "commercialPlanId": null, "preserveExistingTerms": true }
+    },
+    "complete": {
+      "id": "complete",
+      "name": "Completo (legado)",
+      "description": "Plano anterior mantido para compatibilidade com assinaturas existentes.",
+      "pricesInCents": { "monthly": 14999, "quarterly": 39999, "yearly": 139999 },
+      "limits": { "professionals": null, "patients": null, "appointments": null, "services": null, "users": null },
+      "capabilities": {
+        "basicScheduling": true,
+        "appointments": true,
+        "serviceManagement": true,
+        "publicBooking": true,
+        "appointmentReminders": true,
+        "waitlist": true,
+        "basicDashboard": true,
+        "themes": true,
+        "userManagement": true,
+        "basicPermissions": true,
+        "payments": true,
+        "audit": true,
+        "reports": true
+      },
+      "roadmapCapabilities": ["completeDashboard", "reports"],
+      "legacy": true,
+      "compatibility": { "commercialPlanId": "professional", "preserveExistingTerms": true }
+    }
+  }
+}

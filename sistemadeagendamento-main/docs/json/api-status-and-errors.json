@@ -1,0 +1,84 @@
+{
+  "formatVersion": 1,
+  "documentationOnly": true,
+  "description": "Codigos HTTP observados na API PHP. A disponibilidade depende do endpoint; esta lista nao define comportamento novo.",
+  "observedBackends": {
+    "PHP": [200, 201, 202, 400, 401, 403, 404, 409, 413, 429, 500, 502, 503]
+  },
+  "successStatuses": [
+    {
+      "status": 200,
+      "meaning": "Requisicao concluida."
+    },
+    {
+      "status": 201,
+      "meaning": "Recurso criado."
+    },
+    {
+      "status": 202,
+      "meaning": "Requisicao aceita para processamento, observada em fluxos como pedido de recuperacao de senha."
+    }
+  ],
+  "errorStatuses": [
+    {
+      "status": 400,
+      "meaning": "Dados ou parametros invalidos."
+    },
+    {
+      "status": 401,
+      "meaning": "Autenticacao ausente, invalida ou expirada."
+    },
+    {
+      "status": 403,
+      "meaning": "Acesso ou permissao negados."
+    },
+    {
+      "status": 404,
+      "meaning": "Rota ou recurso nao encontrado."
+    },
+    {
+      "status": 409,
+      "meaning": "Conflito de dados, agendamento ou transicao de estado."
+    },
+    {
+      "status": 413,
+      "meaning": "Corpo da requisicao muito grande ou invalido."
+    },
+    {
+      "status": 429,
+      "meaning": "Muitas requisicoes ou tentativas em um intervalo."
+    },
+    {
+      "status": 500,
+      "meaning": "Erro interno nao mapeado."
+    },
+    {
+      "status": 502,
+      "meaning": "Falha na comunicacao com servico externo."
+    },
+    {
+      "status": 503,
+      "meaning": "Servico temporariamente indisponivel."
+    }
+  ],
+  "responseShapes": {
+    "successWithData": {
+      "ok": true,
+      "data": {}
+    },
+    "successWithMessage": {
+      "ok": true,
+      "message": "Operacao concluida."
+    },
+    "error": {
+      "ok": false,
+      "message": "Descricao do erro."
+    }
+  },
+  "notes": [
+    "Os exemplos de responseShapes ilustram formatos observados; nem todo endpoint usa todos os formatos.",
+    "As mensagens e detalhes do erro podem variar entre endpoints.",
+    "Nao foi observado um campo de codigo de erro padronizado no corpo JSON.",
+    "413, 429 e 500 tambem sao tratados pela API PHP."
+  ]
+}

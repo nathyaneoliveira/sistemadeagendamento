@@ -1,0 +1,103 @@
+/* Shared visual language adapted from the NOA CONNECT Figma screens. */
+:root {
+  --bg: #f5f7f7;
+  --surface: #ffffff;
+  --surface-soft: #f8fafa;
+  --text: #203638;
+  --muted: #718184;
+  --border: #e1e8e7;
+  --primary: #176b66;
+  --primary-dark: #125b57;
+  --primary-soft: #e8f3f0;
+  --purple: #6340db;
+  --purple-soft: #f0edfa;
+  --shadow: 0 4px 16px rgba(32, 54, 56, .045);
+}
+body { font-family: Inter, "DM Sans", Arial, sans-serif; color: var(--text); }
+.brand { width: 142px; height: 52px; flex: 0 0 142px; padding: 0; gap: 0; overflow: hidden; background: url("noa-connect-logo.png") left center / contain no-repeat; }
+.brand > * { display: none !important; }
+
+/* Clinic and platform workspaces */
+.sidebar { width: 156px; padding: 15px 14px 13px; }
+.sidebar > .brand { width: 128px; height: 46px; flex-basis: 46px; margin: 0 0 12px; }
+.main-area { margin-left: 156px; }
+.topbar { height: 52px; padding: 0 24px; }
+.content { padding: 25px 24px 18px; }
+.clinic-switch { gap: 7px; padding: 9px 7px; margin-top: 8px; border: 0; border-radius: 8px; }
+.clinic-avatar, .profile-avatar { width: 27px; height: 27px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-size: 9px; }
+.clinic-name b { font-size: 9px; }
+.clinic-name small, .profile small { font-size: 8px; }
+.nav-caption { margin: 22px 8px 7px; font-size: 8px; letter-spacing: .05em; }
+.navigation { gap: 4px; }
+.nav-item { height: 36px; gap: 9px; padding: 0 8px; border-radius: 7px; font-size: 9px; }
+.nav-item.active { background: var(--primary-soft); color: var(--primary); }
+.nav-icon { width: 15px; font-size: 13px; }
+.nav-count { padding: 1px 5px; font-size: 8px; }
+.sidebar-bottom .help-card { padding: 10px; border: 0; border-radius: 8px; }
+.sidebar-bottom .help-card b { font-size: 9px; }
+.sidebar-bottom .help-card small, .sidebar-bottom .help-card a { font-size: 8px; }
+.profile { gap: 7px; margin-top: 10px; padding-top: 10px; }
+.profile b { font-size: 9px; }
+.main-area .breadcrumb { font-size: 10px; }
+.page-heading h1 { font: 700 24px Inter, Arial, sans-serif; letter-spacing: -.035em; }
+.subheading { font-size: 11px; }
+.eyebrow { color: var(--primary); }
+.primary-button, .secondary-button { min-height: 36px; border-radius: 7px; font-size: 10px; box-shadow: none; }
+.primary-button:hover { background: var(--primary-dark); }
+.stat-card, .panel { border-color: var(--border); border-radius: 10px; box-shadow: none; }
+.stat-card { min-height: 128px; }
+.panel-heading h2 { font-family: Inter, Arial, sans-serif; }
+.owner-sidebar { width: 156px; padding: 15px 14px; }
+.owner-sidebar > .brand { width: 128px; height: 46px; flex-basis: 46px; }
+.owner-main { margin-left: 156px; }
+.owner-sidebar .nav-item { font-size: 9px; }
+
+/* Login screens follow the centered card shown in the Figma reference. */
+.auth-page { min-height: 100vh; background: #f5f7fa; }
+.auth-top { display: none; }
+.auth-layout { min-height: 100vh; display: grid; grid-template-columns: 1fr; }
+.auth-promo { display: none; }
+.auth-form-wrap { min-height: 100vh; padding: 28px; }
+.portal-auth-card { width: min(520px, 100%); padding: 48px; border-radius: 22px; background: #fff; box-shadow: none; }
+.portal-auth-card::before { content: "NOA"; display: block; margin-bottom: 28px; color: #6340db; font: 700 30px/1 Inter, Arial, sans-serif; }
+.portal-auth-card .auth-symbol, .portal-auth-card > .eyebrow, .auth-divider, .auth-footer-note, .auth-return { display: none; }
+.portal-auth-card h2 { margin: 0; color: #1a1f2b; font: 700 28px/1.2 Inter, Arial, sans-serif; letter-spacing: -.03em; }
+.auth-help { margin: 0 0 10px; color: #6b7385; font-size: 14px; }
+.portal-form { gap: 16px; }
+.portal-form > label { gap: 7px; color: #38424f; font-size: 12px; }
+.portal-form input { height: 52px; padding: 0 16px; border-color: #e7edf2; border-radius: 10px; background: #f7faff; font-size: 14px; }
+.portal-form > .primary-button { min-height: 52px; margin-top: 2px; border-radius: 10px; background: #6340db; font-size: 14px; }
+.form-feedback { font-size: 11px; }
+
+/* The booking flow is designed as a mobile-first surface. */
+.booking-page { min-height: 100vh; background: #fff; }
+.booking-header { width: min(100%, 430px); height: 76px; margin: 0 auto; padding: 0 22px; justify-content: flex-start; gap: 12px; }
+.booking-header .brand { width: 110px; height: 42px; flex-basis: 110px; }
+.booking-header > span { font-size: 11px; letter-spacing: 0; font-weight: 600; }
+.booking-shell { width: min(100%, 430px); min-height: calc(100vh - 76px); margin: 0 auto; padding: 24px 20px 36px; background: #fff; }
+.booking-brand { gap: 10px; margin-bottom: 22px; }
+.booking-brand h1 { font: 700 22px Inter, Arial, sans-serif; letter-spacing: -.025em; }
+.booking-progress { gap: 8px; }
+.booking-progress span { font-size: 9px; }
+.booking-progress b { flex: 1; }
+.booking-card { border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 20px 0; box-shadow: none; }
+.service-choice { min-height: 64px; border-radius: 9px; }
+.booking-next { width: 100%; min-height: 42px; }
+
+/* Public-facing proposal and sales pages use the same teal and neutral palette. */
+.site-page { --bg: #f5f7f7; --surface-soft: #f8fafa; --text: #203638; --muted: #718184; --border: #e1e8e7; --primary: #176b66; --primary-dark: #125b57; --primary-soft: #e8f3f0; }
+.site-header, .site-footer { border-color: var(--border); }
+.site-header .brand, .site-footer .brand { flex-basis: 142px; }
+.price-card, .feature-grid article { border-color: var(--border); box-shadow: none; }
+.site-page h1, .site-page h2, .site-page h3 { font-family: Inter, "DM Sans", Arial, sans-serif; }
+
+@media (max-width: 760px) {
+  .sidebar { width: 252px; padding: 12px 16px; }
+  .main-area, .owner-main { margin-left: 0; }
+  .owner-sidebar { width: 100%; padding: 12px 16px; }
+  .owner-sidebar > .brand { width: 128px; }
+  .auth-form-wrap { min-height: 100vh; padding: 18px; }
+  .portal-auth-card { padding: 32px 24px; }
+  .booking-header, .booking-shell { width: min(100%, 430px); margin-inline: auto; }
+  .booking-shell { padding-inline: 18px; }
+}

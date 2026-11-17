@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f857f94d-8b24-48dc-b1c8-1a684e7595be",
     "name": "Sistema de Agendamentos - API",
-    "description": "Requests preparados a partir das rotas montadas em backend/src/app.js. Use somente em desenvolvimento/testes e confirme o destino antes de executar requests de escrita.",
+    "description": "Coleção de requests da API PHP. Use somente em desenvolvimento/testes e confirme o destino antes de executar requests de escrita.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {

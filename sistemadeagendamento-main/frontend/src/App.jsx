@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   clinicDateAt,
   clinicDateTimeToIso,
   clinicToday,
   isValidIanaTimeZone,
 } from './clinicTime.js';
-import { resolveApiUrl } from './apiConfig.js';
+import { clinicApiFetch } from './clinicApi.js';
 import { ThemeToggle, useTheme } from './theme.jsx';
+import ClinicTools from './ClinicTools.jsx';
 
-const API_URL = resolveApiUrl({
-  isProduction: import.meta.env.PROD,
-  apiUrl: import.meta.env.VITE_API_URL,
-});
+const CLINIC_SESSION = 'http-only-cookie-session';
+const getClinicSession = () => (
+  localStorage.getItem('clinic_session_active') === '1' ? CLINIC_SESSION : null
+);
 const EMPTY_DATA = { appointments: [], professionals: [], patients: [], specialties: [], services: [] };
-const CLINIC_TABS = new Set(['dashboard', 'professionals', 'services', 'schedule', 'appointments', 'settings']);
+const CLINIC_TABS = new Set(['dashboard', 'professionals', 'services', 'schedule', 'appointments', 'settings', 'reports', 'waitlist', 'payments']);
 const WEEKDAYS = [
   { value: 1, label: 'Segunda-feira' },
   { value: 2, label: 'Terça-feira' },
@@ -67,13 +68,7 @@ class ApiError extends Error {
 }
 
 async function apiRequest(path, token, options = {}) {
-  const headers = new Headers(options.headers || {});
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (options.body !== undefined && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const response = await clinicApiFetch(path, options);
   let payload = null;
   try {
     payload = await response.json();
@@ -266,8 +261,16 @@ function ClinicApp() {
   });
   const [timezoneDraft, setTimezoneDraft] = useState('UTC');
   const [publicSlugDraft, setPublicSlugDraft] = useState('');
+  const [appointmentRemindersEnabled, setAppointmentRemindersEnabled] = useState(false);
+  const [privacyProfileDraft, setPrivacyProfileDraft] = useState({
+    legalName: '',
+    cnpj: '',
+    privacyEmail: '',
+    privacyPolicyUrl: '',
+  });
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsBusy, setSettingsBusy] = useState(false);
+  const [privacyProfileBusy, setPrivacyProfileBusy] = useState(false);
   const sessionGeneration = useRef(0);
   const availabilityRequestId = useRef(0);
   const managementRequestId = useRef(0);
@@ -319,6 +322,7 @@ function ClinicApp() {
     sessionGeneration.current += 1;
     availabilityRequestId.current += 1;
     managementRequestId.current += 1;
+    localStorage.removeItem('clinic_session_active');
     localStorage.removeItem('clinic_token');
     setForm((previous) => ({ ...previous, password: '' }));
     setLogged(false);
@@ -357,14 +361,11 @@ function ClinicApp() {
     setLoggingOut(true);
     setError('');
 
-    const token = localStorage.getItem('clinic_token');
     let logoutFailed = false;
     try {
-      if (token) {
-        await apiRequest('/auth/logout', token, { method: 'POST' });
-      }
+      await apiRequest('/auth/logout', getClinicSession(), { method: 'POST' });
     } catch {
-      logoutFailed = Boolean(token);
+      logoutFailed = true;
     } finally {
       endSession();
       setError(logoutFailed ? 'Sessão encerrada localmente.' : '');
@@ -396,7 +397,7 @@ function ClinicApp() {
     } catch (requestError) {
       if (
         generation !== sessionGeneration.current ||
-        localStorage.getItem('clinic_token') !== token
+        getClinicSession() !== token
       ) {
         return null;
       }
@@ -404,7 +405,7 @@ function ClinicApp() {
     }
     if (
       generation !== sessionGeneration.current ||
-      localStorage.getItem('clinic_token') !== token
+      getClinicSession() !== token
     ) {
       return null;
     }
@@ -491,8 +492,8 @@ function ClinicApp() {
 
   useEffect(() => {
     let active = true;
-    const token = localStorage.getItem('clinic_token');
-
+    localStorage.removeItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       setSessionReady(true);
       return () => { active = false; };
@@ -549,7 +550,7 @@ function ClinicApp() {
       setAvailability([]);
       return undefined;
     }
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) return undefined;
 
     let active = true;
@@ -581,7 +582,7 @@ function ClinicApp() {
       return undefined;
     }
 
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) return undefined;
     let active = true;
     loadProfessionalManagement(token, selectedProfessionalId, managementDate)
@@ -608,17 +609,27 @@ function ClinicApp() {
 
   useEffect(() => {
     if (tab !== 'settings' || !logged || !sessionReady || user?.role !== 'admin') return undefined;
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) return undefined;
 
     let active = true;
     setSettingsLoading(true);
-    loadClinicSettings(token)
-      .then((payload) => {
+    Promise.all([
+      loadClinicSettings(token),
+      apiRequest('/settings/privacy-profile', token),
+    ])
+      .then(([payload, privacyPayload]) => {
         if (!active) return;
         const timezone = payload?.data?.timezone || 'UTC';
         setTimezoneDraft(timezone);
         setPublicSlugDraft(payload?.data?.public_slug || '');
+        setAppointmentRemindersEnabled(Boolean(payload?.data?.appointment_reminders_enabled));
+        setPrivacyProfileDraft({
+          legalName: privacyPayload?.data?.legalName || '',
+          cnpj: privacyPayload?.data?.cnpj || '',
+          privacyEmail: privacyPayload?.data?.privacyEmail || '',
+          privacyPolicyUrl: privacyPayload?.data?.privacyPolicyUrl || '',
+        });
         setUser((current) => current ? { ...current, clinic_timezone: timezone } : current);
       })
       .catch((requestError) => {
@@ -636,7 +647,7 @@ function ClinicApp() {
       setSubscription(null);
       return undefined;
     }
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) return undefined;
 
     let active = true;
@@ -662,6 +673,9 @@ function ClinicApp() {
     schedule: 'Agenda',
     appointments: 'Consultas',
     settings: 'Configurações',
+    reports: 'Relatórios',
+    waitlist: 'Lista de espera',
+    payments: 'Financeiro',
   }[tab] || 'Dashboard'), [tab]);
   const pageDescription = {
     dashboard: 'Uma visão clara para cuidar de cada atendimento.',
@@ -670,6 +684,9 @@ function ClinicApp() {
     schedule: 'Consulte a disponibilidade e organize novos atendimentos.',
     appointments: 'Acompanhe, atualize e reagende as consultas da clínica.',
     settings: 'Preferências de fuso horário e agendamento público.',
+    reports: 'Indicadores operacionais e desempenho dos atendimentos.',
+    waitlist: 'Organize pacientes interessados em horários vagos.',
+    payments: 'Registre cobranças e acompanhe pagamentos dos atendimentos.',
   }[tab] || '';
 
   const handleChange = (field, value) => {
@@ -707,11 +724,10 @@ function ClinicApp() {
         setForm((previous) => ({ ...previous, password: '' }));
         return;
       }
-      const token = payload?.data?.token;
-      if (!token) throw new Error('A resposta de autenticação não contém uma sessão válida.');
+      const token = CLINIC_SESSION;
 
       sessionGeneration.current += 1;
-      localStorage.setItem('clinic_token', token);
+      localStorage.setItem('clinic_session_active', '1');
       setUser(payload.data.user || null);
       const timezone = payload.data.user?.clinic_timezone || 'UTC';
       setSelectedDate(clinicToday(timezone));
@@ -745,12 +761,11 @@ function ClinicApp() {
           clinicId,
         }),
       });
-      const token = payload?.data?.token;
-      if (!token) throw new Error('A resposta de autenticação não contém uma sessão válida.');
+      const token = CLINIC_SESSION;
 
       setClinicSelection(null);
       sessionGeneration.current += 1;
-      localStorage.setItem('clinic_token', token);
+      localStorage.setItem('clinic_session_active', '1');
       setUser(payload.data.user || null);
       const timezone = payload.data.user?.clinic_timezone || 'UTC';
       setSelectedDate(clinicToday(timezone));
@@ -771,7 +786,7 @@ function ClinicApp() {
   };
 
   const reloadData = async () => {
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) return;
     setPageError('');
     try {
@@ -804,7 +819,7 @@ function ClinicApp() {
       return;
     }
 
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -816,7 +831,7 @@ function ClinicApp() {
     try {
       const payload = await apiRequest('/settings', token, {
         method: 'POST',
-        body: JSON.stringify({ timezone, publicSlug: publicSlugDraft.trim() }),
+        body: JSON.stringify({ timezone, publicSlug: publicSlugDraft.trim(), appointmentRemindersEnabled }),
       });
       const savedTimezone = payload?.data?.timezone;
       if (!savedTimezone) throw new Error('A API não confirmou o fuso horário salvo.');
@@ -831,6 +846,41 @@ function ClinicApp() {
       handleRequestError(requestError, 'Não foi possível atualizar o fuso horário da clínica.');
     } finally {
       setSettingsBusy(false);
+    }
+  };
+
+  const handlePrivacyProfileSubmit = async (event) => {
+    event.preventDefault();
+    const token = getClinicSession();
+    if (!token) {
+      endSession();
+      return;
+    }
+
+    setPrivacyProfileBusy(true);
+    setPageError('');
+    setSuccess('');
+    try {
+      const payload = await apiRequest('/settings/privacy-profile', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          legalName: privacyProfileDraft.legalName.trim(),
+          cnpj: privacyProfileDraft.cnpj.trim(),
+          privacyEmail: privacyProfileDraft.privacyEmail.trim(),
+          privacyPolicyUrl: privacyProfileDraft.privacyPolicyUrl.trim(),
+        }),
+      });
+      setPrivacyProfileDraft({
+        legalName: payload?.data?.legalName || '',
+        cnpj: payload?.data?.cnpj || '',
+        privacyEmail: payload?.data?.privacyEmail || '',
+        privacyPolicyUrl: payload?.data?.privacyPolicyUrl || '',
+      });
+      setSuccess('Dados de privacidade da clínica atualizados.');
+    } catch (requestError) {
+      handleRequestError(requestError, 'Não foi possível atualizar os dados de privacidade.');
+    } finally {
+      setPrivacyProfileBusy(false);
     }
   };
 
@@ -886,7 +936,7 @@ function ClinicApp() {
       return;
     }
 
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -921,7 +971,7 @@ function ClinicApp() {
   };
 
   const handleServiceStatus = async (service) => {
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -967,7 +1017,7 @@ function ClinicApp() {
       return;
     }
 
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -1017,7 +1067,7 @@ function ClinicApp() {
       return;
     }
 
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -1064,7 +1114,7 @@ function ClinicApp() {
       return;
     }
 
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -1142,7 +1192,7 @@ function ClinicApp() {
 
   const handleCancel = async (appointment) => {
     if (!window.confirm('Deseja cancelar este agendamento?')) return;
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -1169,7 +1219,7 @@ function ClinicApp() {
   };
 
   const handleNotesUpdate = async (appointmentId) => {
-    const token = localStorage.getItem('clinic_token');
+    const token = getClinicSession();
     if (!token) {
       endSession();
       return;
@@ -1298,6 +1348,10 @@ function ClinicApp() {
               </label>
               {error ? <p className="error-text" role="alert">{error}</p> : null}
               <button type="submit" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
+              <div className="auth-links">
+                <Link to="/forgot-password">Esqueci minha senha</Link>
+                <Link to="/register">Criar conta</Link>
+              </div>
             </form>
           )}
         </div>
@@ -1342,6 +1396,19 @@ function ClinicApp() {
           <button type="button" className={`nav-link${tab === 'professionals' ? ' active' : ''}`} onClick={() => navigateTo('professionals')} aria-current={tab === 'professionals' ? 'page' : undefined}>
             <Icon name="professionals" /><span>Profissionais</span>
           </button>
+          {['admin', 'reception'].includes(user?.role) ? (
+            <>
+            <button type="button" className={`nav-link${tab === 'waitlist' ? ' active' : ''}`} onClick={() => navigateTo('waitlist')} aria-current={tab === 'waitlist' ? 'page' : undefined}>
+              <Icon name="appointments" /><span>Lista de espera</span>
+            </button>
+            {subscription?.capabilities?.reports ? <button type="button" className={`nav-link${tab === 'reports' ? ' active' : ''}`} onClick={() => navigateTo('reports')} aria-current={tab === 'reports' ? 'page' : undefined}>
+              <Icon name="dashboard" /><span>Relatórios</span>
+            </button> : null}
+            {subscription?.capabilities?.payments ? <button type="button" className={`nav-link${tab === 'payments' ? ' active' : ''}`} onClick={() => navigateTo('payments')} aria-current={tab === 'payments' ? 'page' : undefined}>
+              <Icon name="services" /><span>Financeiro</span>
+            </button> : null}
+            </>
+          ) : null}
           {['admin', 'reception'].includes(user?.role) ? (
             <button type="button" className={`nav-link${tab === 'services' ? ' active' : ''}`} onClick={() => navigateTo('services')} aria-current={tab === 'services' ? 'page' : undefined}>
               <Icon name="services" /><span>Serviços</span>
@@ -1436,6 +1503,9 @@ function ClinicApp() {
                   autoComplete="off"
                 />
               </label>
+              <label className="form-wide">
+                <span><input type="checkbox" checked={appointmentRemindersEnabled} onChange={(event) => setAppointmentRemindersEnabled(event.target.checked)} /> Ativar lembretes de consultas (somente para pacientes que autorizaram)</span>
+              </label>
               <p className="muted-text form-wide">
                 {publicSlugDraft.trim()
                   ? <>Link público: <a href={`/booking/${encodeURIComponent(publicSlugDraft.trim())}`} target="_blank" rel="noreferrer">{`${window.location.origin}/booking/${publicSlugDraft.trim()}`}</a></>
@@ -1446,6 +1516,67 @@ function ClinicApp() {
               </p>
               <button type="submit" className="form-wide" disabled={settingsBusy || settingsLoading}>
                 {settingsLoading ? 'Carregando...' : settingsBusy ? 'Salvando...' : 'Salvar configurações'}
+              </button>
+            </form>
+          </section>
+        ) : null}
+
+        {tab === 'settings' && user?.role === 'admin' ? (
+          <section className="panel" aria-labelledby="privacy-profile-heading">
+            <h3 id="privacy-profile-heading">Dados de privacidade</h3>
+            <p className="muted-text">
+              Informe os dados da própria clínica. Quando houver uma URL HTTPS, o agendamento público exibirá somente o link para o aviso.
+              A clínica é responsável por revisar e manter o conteúdo jurídico do aviso.
+            </p>
+            <form className="appointment-form" onSubmit={handlePrivacyProfileSubmit}>
+              <label>
+                Nome empresarial
+                <input
+                  type="text"
+                  name="privacyLegalName"
+                  value={privacyProfileDraft.legalName}
+                  onChange={(event) => setPrivacyProfileDraft((current) => ({ ...current, legalName: event.target.value }))}
+                  maxLength="200"
+                  autoComplete="organization"
+                />
+              </label>
+              <label>
+                CNPJ
+                <input
+                  type="text"
+                  name="privacyCnpj"
+                  value={privacyProfileDraft.cnpj}
+                  onChange={(event) => setPrivacyProfileDraft((current) => ({ ...current, cnpj: event.target.value }))}
+                  maxLength="18"
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                E-mail de privacidade
+                <input
+                  type="email"
+                  name="privacyEmail"
+                  value={privacyProfileDraft.privacyEmail}
+                  onChange={(event) => setPrivacyProfileDraft((current) => ({ ...current, privacyEmail: event.target.value }))}
+                  maxLength="255"
+                  autoComplete="email"
+                />
+              </label>
+              <label>
+                URL HTTPS do aviso de privacidade
+                <input
+                  type="url"
+                  name="privacyPolicyUrl"
+                  value={privacyProfileDraft.privacyPolicyUrl}
+                  onChange={(event) => setPrivacyProfileDraft((current) => ({ ...current, privacyPolicyUrl: event.target.value }))}
+                  maxLength="2048"
+                  pattern="https://.*"
+                  placeholder="https://..."
+                  autoComplete="url"
+                />
+              </label>
+              <button type="submit" className="form-wide" disabled={privacyProfileBusy || settingsLoading}>
+                {settingsLoading ? 'Carregando...' : privacyProfileBusy ? 'Salvando...' : 'Salvar dados de privacidade'}
               </button>
             </form>
           </section>
@@ -1938,7 +2069,7 @@ function ClinicApp() {
                         className="secondary-button"
                         disabled={availabilityLoading || !selectedProfessionalId || (appointmentMode === 'create' && !selectedServiceId)}
                         onClick={() => refreshAvailability(
-                          localStorage.getItem('clinic_token'),
+                          getClinicSession(),
                           selectedProfessionalId,
                           selectedDate,
                           selectedServiceId,
@@ -2037,7 +2168,7 @@ function ClinicApp() {
                                 setNoteDraft(item.notes || '');
                               }}>Editar observação</button>
                             ) : null}
-                            {canManageAppointments && item.status !== 'cancelled' ? (
+                            {canManageAppointments && ['scheduled', 'confirmed'].includes(item.status) ? (
                               <>
                                 <button type="button" className="secondary-button" onClick={() => beginReschedule(item)}>Reagendar</button>
                                 <button type="button" className="danger-button" disabled={appointmentBusy} onClick={() => handleCancel(item)}>Cancelar</button>
@@ -2062,6 +2193,9 @@ function ClinicApp() {
             ) : <p className="muted-text">Nenhum agendamento encontrado.</p>}
           </section>
         )}
+        {(['reports', 'waitlist', 'payments'].includes(tab)) && ['admin', 'reception'].includes(user?.role) ? (
+          <ClinicTools tab={tab} token={getClinicSession() || ''} services={dashboard.services.filter((service) => service.is_active)} appointments={dashboard.appointments} />
+        ) : null}
       </main>
     </div>
   );

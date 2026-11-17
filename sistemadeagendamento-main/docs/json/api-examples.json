@@ -1,0 +1,185 @@
+{
+  "formatVersion": 1,
+  "documentationOnly": true,
+  "description": "Exemplos ilustrativos de payloads existentes. Valores de identificadores, nomes, datas e contatos sao sinteticos; endpoints e respostas devem ser confirmados no backend ativo.",
+  "basePath": "/api",
+  "conventions": {
+    "requestFieldStyle": "camelCase",
+    "databaseResponseFieldStyle": "snake_case",
+    "responseEnvelope": "A maioria dos endpoints usa { ok, data } em sucesso e { ok, message } em erro.",
+    "syntheticContactDomain": "example.invalid",
+    "credentialPolicy": "Senhas e tokens reais nao sao incluidos; placeholders nao sao credenciais utilizaveis."
+  },
+  "examples": [
+    {
+      "name": "Criar paciente",
+      "method": "POST",
+      "path": "/api/patients",
+      "request": {
+        "name": "Paciente de Exemplo",
+        "cpf": null,
+        "birthDate": null,
+        "phone": null,
+        "email": "paciente@example.invalid",
+        "userId": null,
+        "status": "active"
+      },
+      "successStatus": 201,
+      "response": {
+        "ok": true,
+        "data": {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "clinic_id": "00000000-0000-4000-8000-000000000001",
+          "user_id": null,
+          "name": "Paciente de Exemplo",
+          "cpf": null,
+          "birth_date": null,
+          "phone": null,
+          "email": "paciente@example.invalid",
+          "status": "active",
+          "created_at": "2030-01-15T12:00:00.000Z",
+          "updated_at": "2030-01-15T12:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Criar profissional",
+      "method": "POST",
+      "path": "/api/professionals",
+      "request": {
+        "name": "Profissional de Exemplo",
+        "specialtyId": "00000000-0000-4000-8000-000000000201",
+        "userId": null,
+        "crm": null,
+        "phone": null,
+        "status": "active"
+      },
+      "successStatus": 201,
+      "response": {
+        "ok": true,
+        "data": {
+          "id": "00000000-0000-4000-8000-000000000301",
+          "clinic_id": "00000000-0000-4000-8000-000000000001",
+          "user_id": null,
+          "specialty_id": "00000000-0000-4000-8000-000000000201",
+          "name": "Profissional de Exemplo",
+          "crm": null,
+          "phone": null,
+          "status": "active",
+          "created_at": "2030-01-15T12:00:00.000Z",
+          "updated_at": "2030-01-15T12:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Criar servico",
+      "method": "POST",
+      "path": "/api/services",
+      "request": {
+        "name": "Consulta de Exemplo",
+        "description": "Descricao demonstrativa.",
+        "durationMinutes": 30,
+        "price": 100.00,
+        "professionalIds": [
+          "00000000-0000-4000-8000-000000000301"
+        ]
+      },
+      "successStatus": 201,
+      "response": {
+        "ok": true,
+        "data": {
+          "id": "00000000-0000-4000-8000-000000000401",
+          "clinic_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Consulta de Exemplo",
+          "description": "Descricao demonstrativa.",
+          "duration_minutes": 30,
+          "price": 100.00,
+          "is_active": true,
+          "created_at": "2030-01-15T12:00:00.000Z",
+          "updated_at": "2030-01-15T12:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Criar agendamento",
+      "method": "POST",
+      "path": "/api/appointments",
+      "request": {
+        "patientId": "00000000-0000-4000-8000-000000000101",
+        "professionalId": "00000000-0000-4000-8000-000000000301",
+        "specialtyId": "00000000-0000-4000-8000-000000000201",
+        "serviceId": "00000000-0000-4000-8000-000000000401",
+        "scheduledStart": "2030-02-01T13:00:00.000Z",
+        "scheduledEnd": "2030-02-01T13:30:00.000Z",
+        "notes": null
+      },
+      "successStatus": 201,
+      "response": {
+        "ok": true,
+        "data": {
+          "id": "00000000-0000-4000-8000-000000000501",
+          "clinic_id": "00000000-0000-4000-8000-000000000001",
+          "patient_id": "00000000-0000-4000-8000-000000000101",
+          "professional_id": "00000000-0000-4000-8000-000000000301",
+          "specialty_id": "00000000-0000-4000-8000-000000000201",
+          "scheduled_start": "2030-02-01T13:00:00.000Z",
+          "scheduled_end": "2030-02-01T13:30:00.000Z",
+          "service_id": "00000000-0000-4000-8000-000000000401",
+          "service_name_snapshot": "Consulta de Exemplo",
+          "service_price_snapshot": 100.00,
+          "service_duration_snapshot": 30,
+          "public_idempotency_key": null,
+          "rescheduled_from_appointment_id": null,
+          "status": "scheduled",
+          "code": "EXEMPLO-2030",
+          "notes": null,
+          "created_at": "2030-01-15T12:00:00.000Z",
+          "updated_at": "2030-01-15T12:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Registrar usuario",
+      "method": "POST",
+      "path": "/api/auth/register",
+      "request": {
+        "name": "Usuario de Exemplo",
+        "email": "usuario@example.invalid",
+        "password": "[omitir: fornecer somente em ambiente seguro]",
+        "role": "reception",
+        "phone": null
+      },
+      "successStatus": 201,
+      "response": {
+        "ok": true,
+        "data": {
+          "id": "00000000-0000-4000-8000-000000000601",
+          "clinic_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Usuario de Exemplo",
+          "email": "usuario@example.invalid",
+          "phone": null,
+          "role": "reception"
+        }
+      },
+      "notes": [
+        "O cadastro exige autenticacao de administrador e capacidade de gerenciamento de usuarios.",
+        "O valor de password e apenas um marcador documental, nao uma senha."
+      ]
+    },
+    {
+      "name": "Erro de validacao",
+      "method": "POST",
+      "path": "/api/services",
+      "request": {
+        "name": "",
+        "durationMinutes": 0,
+        "price": -1
+      },
+      "errorStatus": 400,
+      "response": {
+        "ok": false,
+        "message": "Dados de servico invalidos ou campos nao permitidos."
+      }
+    }
+  ]
+}

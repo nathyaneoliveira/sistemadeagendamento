@@ -1,0 +1,169 @@
+{
+  "formatVersion": 1,
+  "documentationOnly": true,
+  "description": "Inventario dos campos existentes nas tabelas do dominio e dos tipos usados nas APIs. Nao e consumido pelo runtime e nao substitui validacoes ou schema SQL.",
+  "sources": [
+    "database/schema.sql",
+    "php-backend/public/index.php",
+    "php-backend/src/bootstrap.php"
+  ],
+  "conventions": {
+    "databaseAndMostResponses": "snake_case",
+    "requestPayloads": "camelCase",
+    "timestamps": "ISO 8601 strings",
+    "uuid": "string",
+    "nullable": "Indica se o campo aceita null no banco ou no retorno documentado; as regras de cada request podem ser mais restritas."
+  },
+  "entities": {
+    "patient": {
+      "table": "patients",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "nullable": false },
+        "clinic_id": { "type": "string", "format": "uuid", "nullable": false },
+        "user_id": { "type": "string", "format": "uuid", "nullable": true },
+        "name": { "type": "string", "maxLength": 200, "nullable": false },
+        "cpf": { "type": "string", "maxLength": 14, "nullable": true },
+        "birth_date": { "type": "string", "format": "date", "nullable": true },
+        "phone": { "type": "string", "maxLength": 20, "nullable": true },
+        "email": { "type": "string", "maxLength": 255, "nullable": true },
+        "status": { "type": "string", "maxLength": 20, "nullable": false },
+        "created_at": { "type": "string", "format": "date-time", "nullable": false },
+        "updated_at": { "type": "string", "format": "date-time", "nullable": false }
+      },
+      "createRequestFields": {
+        "name": { "type": "string", "required": true, "maxLength": 200 },
+        "cpf": { "type": ["string", "null"], "required": false, "maxLength": 14 },
+        "birthDate": { "type": ["string", "null"], "required": false, "format": "date" },
+        "phone": { "type": ["string", "null"], "required": false, "maxLength": 20 },
+        "email": { "type": ["string", "null"], "required": false, "maxLength": 255 },
+        "userId": { "type": ["string", "null"], "required": false, "format": "uuid" },
+        "status": { "type": ["string", "null"], "required": false, "maxLength": 20 }
+      }
+    },
+    "professional": {
+      "table": "professionals",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "nullable": false },
+        "clinic_id": { "type": "string", "format": "uuid", "nullable": false },
+        "user_id": { "type": "string", "format": "uuid", "nullable": true },
+        "specialty_id": { "type": "string", "format": "uuid", "nullable": true },
+        "name": { "type": "string", "maxLength": 200, "nullable": false },
+        "crm": { "type": "string", "maxLength": 50, "nullable": true },
+        "phone": { "type": "string", "maxLength": 20, "nullable": true },
+        "status": { "type": "string", "nullable": false, "requestValues": ["active", "inactive"] },
+        "created_at": { "type": "string", "format": "date-time", "nullable": false },
+        "updated_at": { "type": "string", "format": "date-time", "nullable": false }
+      },
+      "listResponseAliases": {
+        "specialty_name": { "type": ["string", "null"], "description": "Pode aparecer em consultas que fazem join com specialties." }
+      },
+      "createRequestFields": {
+        "name": { "type": "string", "required": true, "maxLength": 200 },
+        "specialtyId": { "type": "string", "required": true, "format": "uuid" },
+        "userId": { "type": ["string", "null"], "required": false, "format": "uuid" },
+        "crm": { "type": ["string", "null"], "required": false, "maxLength": 50 },
+        "phone": { "type": ["string", "null"], "required": false, "maxLength": 20 },
+        "status": { "type": "string", "required": false, "enum": ["active", "inactive"] }
+      }
+    },
+    "service": {
+      "table": "services",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "nullable": false },
+        "clinic_id": { "type": "string", "format": "uuid", "nullable": false },
+        "name": { "type": "string", "maxLength": 200, "nullable": false },
+        "description": { "type": "string", "nullable": true },
+        "duration_minutes": { "type": "integer", "minimum": 1, "maximum": 1440, "nullable": false },
+        "price": { "type": "number", "minimum": 0, "maximum": 99999999.99, "decimalPlaces": 2, "nullable": false },
+        "is_active": { "type": "boolean", "nullable": false },
+        "created_at": { "type": "string", "format": "date-time", "nullable": false },
+        "updated_at": { "type": "string", "format": "date-time", "nullable": false }
+      },
+      "listResponseAliases": {
+        "professional_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+      },
+      "createRequestFields": {
+        "name": { "type": "string", "required": true, "maxLength": 200 },
+        "description": { "type": ["string", "null"], "required": false, "maxLength": 2000 },
+        "durationMinutes": { "type": "integer", "required": true, "minimum": 1, "maximum": 1440 },
+        "price": { "type": "number", "required": true, "minimum": 0, "maximum": 99999999.99, "decimalPlaces": 2 },
+        "professionalIds": { "type": "array", "required": false, "uniqueItems": true, "items": { "type": "string", "format": "uuid" } }
+      },
+      "statusRequestFields": {
+        "isActive": { "type": "boolean", "required": true }
+      }
+    },
+    "appointment": {
+      "table": "appointments",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "nullable": false },
+        "clinic_id": { "type": "string", "format": "uuid", "nullable": false },
+        "patient_id": { "type": "string", "format": "uuid", "nullable": false },
+        "professional_id": { "type": "string", "format": "uuid", "nullable": false },
+        "specialty_id": { "type": "string", "format": "uuid", "nullable": true },
+        "scheduled_start": { "type": "string", "format": "date-time", "nullable": false },
+        "scheduled_end": { "type": "string", "format": "date-time", "nullable": false },
+        "service_id": { "type": "string", "format": "uuid", "nullable": true },
+        "service_name_snapshot": { "type": "string", "maxLength": 200, "nullable": true },
+        "service_price_snapshot": { "type": "number", "minimum": 0, "decimalPlaces": 2, "nullable": true },
+        "service_duration_snapshot": { "type": "integer", "minimum": 1, "maximum": 1440, "nullable": true },
+        "public_idempotency_key": { "type": "string", "format": "uuid", "nullable": true },
+        "rescheduled_from_appointment_id": { "type": "string", "format": "uuid", "nullable": true },
+        "status": { "type": "string", "nullable": false, "enum": ["scheduled", "confirmed", "completed", "cancelled", "no_show", "rescheduled"] },
+        "code": { "type": "string", "maxLength": 30, "nullable": false },
+        "notes": { "type": "string", "nullable": true },
+        "created_at": { "type": "string", "format": "date-time", "nullable": false },
+        "updated_at": { "type": "string", "format": "date-time", "nullable": false }
+      },
+      "createRequestFields": {
+        "patientId": { "type": "string", "required": true, "format": "uuid" },
+        "professionalId": { "type": "string", "required": true, "format": "uuid" },
+        "specialtyId": { "type": ["string", "null"], "required": false, "format": "uuid" },
+        "serviceId": { "type": "string", "required": true, "format": "uuid" },
+        "scheduledStart": { "type": "string", "required": true, "format": "date-time" },
+        "scheduledEnd": { "type": "string", "required": true, "format": "date-time" },
+        "notes": { "type": ["string", "null"], "required": false }
+      },
+      "statusTransitions": {
+        "scheduled": ["confirmed", "cancelled"],
+        "confirmed": ["completed", "cancelled", "no_show"],
+        "completed": [],
+        "cancelled": [],
+        "no_show": [],
+        "rescheduled": []
+      },
+      "listResponseAliases": {
+        "patient_name": { "type": "string" },
+        "professional_name": { "type": "string" }
+      }
+    },
+    "user": {
+      "table": "users",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "nullable": false },
+        "clinic_id": { "type": "string", "format": "uuid", "nullable": false },
+        "name": { "type": "string", "maxLength": 200, "nullable": false },
+        "email": { "type": "string", "maxLength": 255, "nullable": false },
+        "phone": { "type": "string", "maxLength": 20, "nullable": true },
+        "role": { "type": "string", "nullable": false, "enum": ["admin", "reception", "professional", "patient"] },
+        "status": { "type": "string", "nullable": false },
+        "last_login_at": { "type": "string", "format": "date-time", "nullable": true },
+        "created_at": { "type": "string", "format": "date-time", "nullable": false },
+        "updated_at": { "type": "string", "format": "date-time", "nullable": false }
+      },
+      "databaseFieldsExcludedFromApiExamples": ["password_hash", "token_version"],
+      "createRequestFields": {
+        "name": { "type": "string", "required": true },
+        "email": { "type": "string", "required": true, "format": "email" },
+        "password": { "type": "string", "required": true, "sensitive": true },
+        "role": { "type": "string", "required": true, "enum": ["admin", "reception", "professional", "patient"] },
+        "phone": { "type": ["string", "null"], "required": false }
+      }
+    }
+  },
+  "responseNotes": [
+    "As respostas de listagem podem incluir aliases de joins indicados acima.",
+    "Os campos retornados podem variar conforme o endpoint PHP.",
+    "password_hash e token_version nao devem ser expostos em respostas ou exemplos."
+  ]
+}

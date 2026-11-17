@@ -1,0 +1,11 @@
+.git
+**/.git
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+php-backend/bin
+php-backend/test
+docs
+docs/**

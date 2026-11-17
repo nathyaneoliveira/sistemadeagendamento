@@ -95,7 +95,11 @@ export default function PublicBooking({ clinicSlug }) {
   const [professionalId, setProfessionalId] = useState('');
   const [date, setDate] = useState('');
   const [selectedStart, setSelectedStart] = useState('');
-  const [customer, setCustomer] = useState({ name: '', phone: '', email: '' });
+  const [customer, setCustomer] = useState({ name: '', phone: '', email: '', reminderConsent: false });
+  const [waitlistCustomer, setWaitlistCustomer] = useState({ name: '', phone: '', email: '', period: 'any' });
+  const [waitlistBusy, setWaitlistBusy] = useState(false);
+  const [waitlistMessage, setWaitlistMessage] = useState('');
+  const [waitlistError, setWaitlistError] = useState('');
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [clinicError, setClinicError] = useState('');
@@ -228,6 +232,7 @@ export default function PublicBooking({ clinicSlug }) {
           name: customer.name.trim(),
           phone: customer.phone.trim(),
           ...(customer.email.trim() ? { email: customer.email.trim() } : {}),
+          reminderConsent: customer.reminderConsent,
         }),
       });
       setConfirmation(result.data);
@@ -241,11 +246,23 @@ export default function PublicBooking({ clinicSlug }) {
     }
   };
 
+  const joinWaitlist = async (event) => {
+    event.preventDefault(); setWaitlistBusy(true); setWaitlistError(''); setWaitlistMessage('');
+    try {
+      await request(`/public/clinics/${encodeURIComponent(clinicSlug)}/waitlist`, {
+        method: 'POST',
+        body: JSON.stringify({ serviceId, professionalId: professionalId || null, name: waitlistCustomer.name, phone: waitlistCustomer.phone, ...(waitlistCustomer.email ? { email: waitlistCustomer.email } : {}), preferredFrom: date, preferredTo: date, preferredPeriod: waitlistCustomer.period, consent: true }),
+      });
+      setWaitlistMessage('Pronto. A clínica poderá entrar em contato se surgir um horário compatível.');
+    } catch (requestError) { setWaitlistError(requestError.message); }
+    finally { setWaitlistBusy(false); }
+  };
+
   const startAnotherBooking = () => {
     setServiceId('');
     setProfessionalId('');
     setSelectedStart('');
-    setCustomer({ name: '', phone: '', email: '' });
+    setCustomer({ name: '', phone: '', email: '', reminderConsent: false });
     setConfirmation(null);
     setStep(1);
     const nextKey = createRequestKey();
@@ -309,6 +326,11 @@ export default function PublicBooking({ clinicSlug }) {
         <p className="eyebrow">Agendamento online</p>
         <h1 id="public-booking-heading">{clinic?.name || 'Agendamento'}</h1>
         {clinic?.address ? <p className="muted-text">{clinic.address}</p> : null}
+        {clinic?.privacyPolicyUrl ? (
+          <p className="muted-text">
+            <a href={clinic.privacyPolicyUrl} target="_blank" rel="noopener noreferrer">Aviso de privacidade</a>
+          </p>
+        ) : null}
         <p className="muted-text">Etapa {step} de 6</p>
         {error ? <p className="error-text" role="alert">{error}</p> : null}
 
@@ -417,7 +439,19 @@ export default function PublicBooking({ clinicSlug }) {
                 <button type="button" onClick={() => setAvailabilityRetry((attempt) => attempt + 1)}>Tentar novamente</button>
               </div>
             ) : null}
-            {!availabilityLoading && !availabilityError && slots.length === 0 ? <p className="muted-text">Não há horários disponíveis nesta data.</p> : null}
+            {!availabilityLoading && !availabilityError && slots.length === 0 ? <>
+              <p className="muted-text">Não há horários disponíveis nesta data. Você pode entrar na lista de espera.</p>
+              <form className="public-contact-form" onSubmit={joinWaitlist}>
+                <label className="public-field">Seu nome<input required minLength="2" maxLength="200" value={waitlistCustomer.name} onChange={(e) => setWaitlistCustomer({ ...waitlistCustomer, name: e.target.value })} /></label>
+                <label className="public-field">Telefone<input required type="tel" maxLength="20" value={waitlistCustomer.phone} onChange={(e) => setWaitlistCustomer({ ...waitlistCustomer, phone: e.target.value })} /></label>
+                <label className="public-field">E-mail (opcional)<input type="email" maxLength="255" value={waitlistCustomer.email} onChange={(e) => setWaitlistCustomer({ ...waitlistCustomer, email: e.target.value })} /></label>
+                <label className="public-field">Período preferido<select value={waitlistCustomer.period} onChange={(e) => setWaitlistCustomer({ ...waitlistCustomer, period: e.target.value })}><option value="any">Qualquer horário</option><option value="morning">Manhã</option><option value="afternoon">Tarde</option><option value="evening">Noite</option></select></label>
+                <label className="public-field"><span><input type="checkbox" required /> Autorizo a clínica a usar meus dados para me oferecer horários vagos.</span></label>
+                <button type="submit" disabled={waitlistBusy}>{waitlistBusy ? 'Adicionando…' : 'Entrar na lista de espera'}</button>
+                {waitlistError ? <p className="error-text" role="alert">{waitlistError}</p> : null}
+                {waitlistMessage ? <p className="success-text" role="status">{waitlistMessage}</p> : null}
+              </form>
+            </> : null}
             <div className="slot-grid">
               {slots.map((slot) => (
                 <button
@@ -451,6 +485,7 @@ export default function PublicBooking({ clinicSlug }) {
               <label className="public-field">E-mail (opcional)
                 <input type="email" maxLength="254" autoComplete="email" value={customer.email} onChange={(event) => updateCustomer('email', event.target.value)} />
               </label>
+              <label className="public-field"><span><input type="checkbox" checked={customer.reminderConsent} onChange={(event) => updateCustomer('reminderConsent', event.target.checked)} /> Aceito receber confirmação e lembretes deste agendamento por e-mail ou WhatsApp.</span></label>
               <div className="public-form-actions">
                 <button type="button" className="secondary-button" onClick={() => setStep(4)}>Voltar</button>
                 <button type="submit">Revisar agendamento</button>

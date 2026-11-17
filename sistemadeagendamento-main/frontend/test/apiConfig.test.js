@@ -9,10 +9,14 @@ test('development retains local API default', () => {
   );
 });
 
-test('production requires an explicit HTTPS API URL', () => {
+test('production requires an explicit HTTPS API URL or the same-origin API path', () => {
   assert.throws(
     () => resolveApiUrl({ isProduction: true }),
     /VITE_API_URL must be configured for production builds/
+  );
+  assert.equal(
+    resolveApiUrl({ isProduction: true, apiUrl: '/api' }),
+    '/api'
   );
   assert.equal(
     resolveApiUrl({ isProduction: true, apiUrl: 'https://agenda.example.invalid/api' }),
@@ -29,6 +33,15 @@ test('production rejects insecure or loopback API URLs', () => {
     assert.throws(
       () => resolveApiUrl({ isProduction: true, apiUrl }),
       /must use HTTPS/
+    );
+  }
+});
+
+test('production only accepts the exact same-origin API path when using a relative URL', () => {
+  for (const apiUrl of ['/api/', '/api?mode=test', '//api.example.invalid/api']) {
+    assert.throws(
+      () => resolveApiUrl({ isProduction: true, apiUrl }),
+      /absolute HTTP\(S\) URL/
     );
   }
 });
